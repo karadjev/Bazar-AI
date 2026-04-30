@@ -68,6 +68,7 @@ Registry закреплен в `apps/web/.npmrc`, версия Node закреп
 
 ```bash
 DATABASE_URL=postgres://bazar:bazar_dev@localhost:5432/bazar_ai?sslmode=disable
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
 JWT_SECRET=change-me
 TELEGRAM_BOT_TOKEN=
 PUBLIC_APP_URL=http://localhost:3000

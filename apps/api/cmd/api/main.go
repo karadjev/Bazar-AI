@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"bazar-ai/apps/api/internal/admin"
@@ -94,15 +95,38 @@ func main() {
 
 	mux.Handle("GET /api/v1/admin/stats", adminOnly(http.HandlerFunc(adminHandler.Stats)))
 
-	handler := middleware.StructuredLogger(middleware.RequestID(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux))))
+	handler := middleware.StructuredLogger(middleware.RequestID(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins))))
 	server := &http.Server{Addr: cfg.APIAddr, Handler: handler}
 	log.Printf("Bazar AI API listening on %s (%s)", cfg.APIAddr, cfg.AppEnv)
 	log.Fatal(server.ListenAndServe())
 }
 
-func withCORS(next http.Handler) http.Handler {
+func withCORS(next http.Handler, rawAllowedOrigins string) http.Handler {
+	allowAny := strings.TrimSpace(rawAllowedOrigins) == "*"
+	allowedOrigins := map[string]struct{}{}
+	if !allowAny {
+		for _, origin := range strings.Split(rawAllowedOrigins, ",") {
+			normalized := strings.TrimSpace(origin)
+			if normalized == "" {
+				continue
+			}
+			allowedOrigins[normalized] = struct{}{}
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if allowAny {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		} else if origin != "" {
+			if _, ok := allowedOrigins[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
+			} else {
+				httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "origin is not allowed")
+				return
+			}
+		}
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {

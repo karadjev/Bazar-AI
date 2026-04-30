@@ -6,6 +6,7 @@ type Config struct {
 	AppEnv        string
 	APIAddr       string
 	DatabaseURL   string
+	AllowedOrigins string
 	JWTSecret     string
 	TelegramBot   string
 	PublicAppURL  string
@@ -26,6 +27,7 @@ func Load() Config {
 		AppEnv:        value("APP_ENV", "development"),
 		APIAddr:       value("API_ADDR", ":8080"),
 		DatabaseURL:   value("DATABASE_URL", "postgres://bazar:bazar_dev@localhost:5432/bazar_ai?sslmode=disable"),
+		AllowedOrigins: value("ALLOWED_ORIGINS", value("PUBLIC_APP_URL", "http://localhost:3000")),
 		JWTSecret:     value("JWT_SECRET", "dev-change-me"),
 		TelegramBot:   value("TELEGRAM_BOT_TOKEN", ""),
 		PublicAppURL:  value("PUBLIC_APP_URL", "http://localhost:3000"),
