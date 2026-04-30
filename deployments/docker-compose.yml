@@ -1,0 +1,159 @@
+name: bazar-ai-dev
+
+services:
+  nginx:
+    image: nginx:1.27.3-alpine
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      - public
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health | grep ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: node:24.15.0-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ../apps/web:/app
+      - web_node_modules:/app/node_modules
+    expose:
+      - "3000"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: development
+      API_ADDR: :8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-bazar}:${POSTGRES_PASSWORD:-bazar_dev}@postgres:5432/${POSTGRES_DB:-bazar_ai}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev-change-me}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+      AI_API_URL: ${AI_API_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      UPLOAD_DIR: /app/uploads
+      UPLOAD_BASE_URL: ${UPLOAD_BASE_URL:-http://localhost:8080/uploads}
+      S3_ENDPOINT: ${S3_ENDPOINT:-minio:9000}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-bazar}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-bazar_dev_password}
+      S3_BUCKET: ${S3_BUCKET:-bazar-ai}
+      S3_USE_SSL: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    expose:
+      - "8080"
+    volumes:
+      - api_uploads:/app/uploads
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bazar_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-bazar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bazar_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../apps/api/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bazar} -d ${POSTGRES_DB:-bazar_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4.1-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-bazar}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-bazar_dev_password}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13.7-management-alpine
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+networks:
+  public:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  rabbitmq_data:
+  api_uploads:
+  nginx_logs:
+  web_node_modules:

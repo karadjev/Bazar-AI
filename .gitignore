@@ -1,0 +1,16 @@
+.DS_Store
+node_modules/
+.next/
+.npm-cache/
+.npm-logs/
+uploads/
+
+deployments/env/*.env
+!deployments/env/*.env.example
+
+apps/web/node_modules/
+apps/web/.next/
+apps/web/.npm-cache/
+apps/web/.npm-logs/
+
+apps/api/uploads/

@@ -1,0 +1,212 @@
+name: bazar-ai-prod
+
+services:
+  nginx:
+    image: nginx:1.27.3-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+      - nginx_logs:/var/log/nginx
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    command: /bin/sh -c "envsubst '$$APP_DOMAIN' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    networks:
+      - public
+      - internal
+    logging: &default_logging
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "10"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/nginx-health | grep ok || wget -qO- https://127.0.0.1/nginx-health --no-check-certificate | grep ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      API_ADDR: :8080
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+      AI_API_URL: ${AI_API_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      UPLOAD_DIR: /app/uploads
+      UPLOAD_BASE_URL: ${UPLOAD_BASE_URL}
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-bazar-ai}
+      S3_USE_SSL: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    expose:
+      - "8080"
+    volumes:
+      - api_uploads:/app/uploads
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  postgres:
+    image: postgres:16.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../apps/api/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4.1-alpine
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    command: server /data
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  rabbitmq:
+    image: rabbitmq:3.13.7-management-alpine
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal
+    logging: *default_logging
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  certbot:
+    image: certbot/certbot:v2.11.0
+    profiles: ["ssl"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    entrypoint: /bin/sh
+    command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    networks:
+      - public
+
+networks:
+  public:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  rabbitmq_data:
+  api_uploads:
+  nginx_logs:
+  certbot_www:
+  letsencrypt:

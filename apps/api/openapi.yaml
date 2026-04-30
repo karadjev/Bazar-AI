@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Bazar AI API
+  version: 0.2.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      responses:
+        "200": { description: OK }
+  /api/v1/auth/register:
+    post:
+      summary: Register seller
+      responses:
+        "200": { description: Token pair }
+  /api/v1/auth/login:
+    post:
+      summary: Login seller
+      responses:
+        "200": { description: Token pair }
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke refresh token
+      responses:
+        "200": { description: Logged out }
+  /api/v1/onboarding/complete:
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Complete onboarding and create public store
+      responses:
+        "201": { description: Store with public URL }
+  /api/v1/stores/me:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Seller stores
+      responses:
+        "200": { description: Stores }
+  /api/v1/stores/{storeID}/products:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Products }
+    post:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201": { description: Product }
+  /api/v1/public/stores/{slug}:
+    get:
+      summary: Public storefront data
+      responses:
+        "200": { description: Storefront }
+  /api/v1/public/stores/{slug}/orders:
+    post:
+      summary: Guest checkout
+      responses:
+        "201": { description: Order }
+  /api/v1/stores/{storeID}/orders:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Orders }
+  /api/v1/orders/{id}/notifications:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Notification jobs for order }
+  /api/v1/products/{id}/images:
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Upload product image with MIME and size validation
+      responses:
+        "201": { description: Uploaded image URL and preview URL }
+  /api/v1/stores/{storeID}/telegram/connect-code:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201": { description: Telegram connect code }
+  /api/v1/telegram/webhook:
+    post:
+      summary: Telegram Bot API webhook
+      responses:
+        "200": { description: Webhook handled }
+  /api/v1/ai/generate-product:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: AI generation }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
