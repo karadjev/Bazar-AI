@@ -10,6 +10,14 @@ Run from project root.
 docker --version
 docker compose version
 test -f deployments/env/prod.env || echo "Missing deployments/env/prod.env"
+make prod-preflight
+```
+
+If preflight fails because of weak/placeholder secrets, auto-fix env safely:
+
+```bash
+make prod-autofix-env
+make prod-preflight
 ```
 
 Validate required env keys quickly:

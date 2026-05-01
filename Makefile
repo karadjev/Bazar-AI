@@ -2,7 +2,7 @@ DEV_COMPOSE=docker compose --env-file deployments/env/dev.env -f deployments/doc
 STAGING_COMPOSE=docker compose --env-file deployments/env/staging.env -f deployments/docker-compose.staging.yml
 PROD_COMPOSE=docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml
 
-.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload ssl-dummy ssl-init ssl-renew npm-verbose api web
+.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload prod-preflight staging-preflight prod-autofix-env staging-autofix-env ssl-dummy ssl-init ssl-renew npm-verbose api web
 
 env-init:
 	cp -n deployments/env/dev.env.example deployments/env/dev.env || true
@@ -48,6 +48,18 @@ staging-up:
 
 prod-up:
 	$(PROD_COMPOSE) up -d --build
+
+prod-preflight:
+	bash deployments/scripts/preflight.sh deployments/env/prod.env deployments/docker-compose.prod.yml prod
+
+staging-preflight:
+	bash deployments/scripts/preflight.sh deployments/env/staging.env deployments/docker-compose.staging.yml staging
+
+prod-autofix-env:
+	bash deployments/scripts/autofix-env.sh deployments/env/prod.env
+
+staging-autofix-env:
+	bash deployments/scripts/autofix-env.sh deployments/env/staging.env
 
 prod-deploy:
 	$(PROD_COMPOSE) pull || true
