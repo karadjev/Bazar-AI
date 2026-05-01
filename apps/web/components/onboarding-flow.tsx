@@ -28,6 +28,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { api, createStoreOnboarding, registerDemo, setSession, Store } from "@/lib/api";
+import { setGuestMode } from "@/lib/auth";
 import { Badge, Button, Field, Stepper, Toast } from "@/components/ui-kit";
 import { storefrontThemes, themeByNiche } from "@/lib/themes";
 
@@ -104,7 +105,9 @@ export function OnboardingFlow() {
         contacts: { phone: form.phone, whatsapp: form.whatsapp, telegram: form.telegram }
       });
       setStore(result.store);
+      setGuestMode(Boolean(result.guest_mode));
     } catch {
+      setGuestMode(true);
       setStore({
         id: "demo_store",
         name: form.name,

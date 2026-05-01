@@ -134,18 +134,24 @@ export async function createStoreOnboarding(input: {
   style: string;
   contacts: { phone?: string; whatsapp?: string; telegram?: string };
 }) {
-  return api<{ store: Store }>("/api/onboarding/create-store", {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ store: Store; guest_mode?: boolean }>(`/api/onboarding/create-store${guest}`, {
     method: "POST",
     body: JSON.stringify(input)
   });
 }
 
 export async function dashboardStores() {
-  return api<{ data: Store[] }>("/api/dashboard/stores");
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ data: Store[] }>(`/api/dashboard/stores${guest}`);
 }
 
 export async function dashboardLeads() {
-  return api<{ data: Lead[] }>("/api/dashboard/leads");
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ data: Lead[] }>(`/api/dashboard/leads${guest}`);
 }
 
 export async function publicStore(slug: string) {

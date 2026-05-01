@@ -22,6 +22,7 @@ import {
   Wand2
 } from "lucide-react";
 import { api, clearSession, dashboardLeads, dashboardStores, demoProducts, demoStore, Lead, money, Product, Store } from "@/lib/api";
+import { clearGuestMode } from "@/lib/auth";
 import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
 type ListResponse<T> = T[] | { data?: T[] };
@@ -169,7 +170,7 @@ export function SellerDashboard() {
               </button>
             ))}
           </div>
-          <button onClick={() => { clearSession(); location.href = "/"; }} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold">
+          <button onClick={() => { clearSession(); clearGuestMode(); location.href = "/"; }} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold">
             <LogOut size={16} /> Выйти
           </button>
         </aside>

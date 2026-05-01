@@ -102,9 +102,9 @@ func main() {
 
 	mux.Handle("GET /api/v1/admin/stats", adminOnly(http.HandlerFunc(adminHandler.Stats)))
 
-	mux.Handle("POST /api/onboarding/create-store", owner(http.HandlerFunc(sprintHandler.CreateStore)))
-	mux.Handle("GET /api/dashboard/stores", owner(http.HandlerFunc(sprintHandler.DashboardStores)))
-	mux.Handle("GET /api/dashboard/leads", owner(http.HandlerFunc(sprintHandler.DashboardLeads)))
+	mux.HandleFunc("POST /api/onboarding/create-store", sprintHandler.CreateStore)
+	mux.HandleFunc("GET /api/dashboard/stores", sprintHandler.DashboardStores)
+	mux.HandleFunc("GET /api/dashboard/leads", sprintHandler.DashboardLeads)
 	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
 	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)
 

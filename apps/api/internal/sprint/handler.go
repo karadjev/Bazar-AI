@@ -2,6 +2,7 @@ package sprint
 
 import (
 	"net/http"
+	"sort"
 
 	"bazar-ai/apps/api/internal/platform"
 	"bazar-ai/apps/api/pkg/httpx"
@@ -66,7 +67,7 @@ func (h Handler) CreateStore(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")
 		return
 	}
-	httpx.JSON(w, http.StatusCreated, map[string]any{"store": store})
+	httpx.JSON(w, http.StatusCreated, map[string]any{"store": store, "guest_mode": isGuestMode(r)})
 }
 
 func (h Handler) DashboardStores(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +104,7 @@ func (h Handler) DashboardLeads(w http.ResponseWriter, r *http.Request) {
 		}
 		leads = append(leads, storeLeads...)
 	}
+	sort.SliceStable(leads, func(i, j int) bool { return leads[i].CreatedAt.After(leads[j].CreatedAt) })
 	httpx.JSON(w, http.StatusOK, map[string]any{"data": leads, "meta": map[string]int{"total": len(leads)}})
 }
 
