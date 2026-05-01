@@ -14,11 +14,6 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
-
 required_common=(
   POSTGRES_USER
   POSTGRES_PASSWORD
@@ -33,6 +28,15 @@ required_prod=(
   APP_DOMAIN
   LETSENCRYPT_EMAIL
 )
+
+for key in "${required_common[@]}" "${required_prod[@]}"; do
+  unset "$key" || true
+done
+
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
 
 fail=0
 

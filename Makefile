@@ -1,6 +1,8 @@
 DEV_COMPOSE=docker compose --env-file deployments/env/dev.env -f deployments/docker-compose.yml
-STAGING_COMPOSE=docker compose --env-file deployments/env/staging.env -f deployments/docker-compose.staging.yml
-PROD_COMPOSE=docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml
+STAGING_ENV_GUARD=env -u JWT_SECRET -u POSTGRES_PASSWORD -u MINIO_ROOT_PASSWORD -u ALLOWED_ORIGINS -u PUBLIC_APP_URL -u NEXT_PUBLIC_APP_URL
+PROD_ENV_GUARD=env -u JWT_SECRET -u POSTGRES_PASSWORD -u MINIO_ROOT_PASSWORD -u ALLOWED_ORIGINS -u PUBLIC_APP_URL -u NEXT_PUBLIC_APP_URL -u APP_DOMAIN -u LETSENCRYPT_EMAIL
+STAGING_COMPOSE=$(STAGING_ENV_GUARD) docker compose --env-file deployments/env/staging.env -f deployments/docker-compose.staging.yml
+PROD_COMPOSE=$(PROD_ENV_GUARD) docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml
 
 .PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload prod-preflight staging-preflight prod-autofix-env staging-autofix-env ssl-dummy ssl-init ssl-renew npm-verbose api web
 

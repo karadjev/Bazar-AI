@@ -48,7 +48,10 @@ fi
 
 public_url="$(get_val PUBLIC_APP_URL)"
 allowed_origins="$(get_val ALLOWED_ORIGINS)"
-if [[ -n "$public_url" && -n "$allowed_origins" && "$allowed_origins" != *"$public_url"* ]]; then
+if [[ -n "$public_url" && -z "$allowed_origins" ]]; then
+  set_key ALLOWED_ORIGINS "$public_url"
+  echo "INFO: initialized ALLOWED_ORIGINS from PUBLIC_APP_URL"
+elif [[ -n "$public_url" && "$allowed_origins" != *"$public_url"* ]]; then
   set_key ALLOWED_ORIGINS "${allowed_origins},${public_url}"
   echo "INFO: appended PUBLIC_APP_URL to ALLOWED_ORIGINS"
 fi

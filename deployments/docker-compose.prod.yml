@@ -53,7 +53,7 @@ services:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "[ -f /app/server.js ]"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://frontend:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
       interval: 20s
       timeout: 10s
       retries: 10
