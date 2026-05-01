@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bazar AI — магазин за 5 минут",
-  description: "Premium AI SaaS для запуска локальной витрины, Telegram/WhatsApp заказов и продаж с телефона."
+  title: "Bazar AI — интернет-магазин за 5 минут",
+  description: "AI создает красивую витрину, принимает заказы в Telegram и помогает продавать без программиста и дизайнера."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

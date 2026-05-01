@@ -1,22 +1,36 @@
 import { ArrowUpRight, Loader2, PackageOpen, Sparkles } from "lucide-react";
 import { money, Product } from "@/lib/api";
 
+type ButtonVariant = "primary" | "secondary" | "ghost" | "dark";
+type ButtonSize = "sm" | "md" | "lg" | "icon";
+
 export function Button({
   children,
   variant = "primary",
+  size = "md",
   className = "",
   loading,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "dark"; loading?: boolean }) {
-  const variants = {
-    primary: "bg-berry text-white shadow-[0_14px_34px_rgba(154,54,95,0.22)] hover:bg-[#862c50]",
-    secondary: "border border-line bg-white text-ink hover:border-neutral-300 hover:bg-neutral-50",
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean }) {
+  const variants: Record<ButtonVariant, string> = {
+    primary: "bg-berry text-white shadow-[0_14px_34px_rgba(146,56,95,0.22)] hover:bg-[#7f2f52]",
+    secondary: "border border-line bg-white text-ink shadow-sm hover:border-neutral-300 hover:bg-neutral-50",
     ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100",
-    dark: "bg-ink text-white hover:bg-neutral-800"
+    dark: "bg-ink text-white shadow-[0_14px_34px_rgba(13,17,23,0.22)] hover:bg-neutral-800"
+  };
+  const sizes: Record<ButtonSize, string> = {
+    sm: "h-9 rounded-md px-3 text-xs",
+    md: "h-11 rounded-md px-4 text-sm",
+    lg: "h-12 rounded-md px-5 text-sm",
+    icon: "h-11 w-11 rounded-md p-0 text-sm"
   };
   const { style, ...buttonProps } = props;
   return (
-    <button {...buttonProps} style={style} className={`focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 ${variants[variant]} ${className}`}>
+    <button
+      {...buttonProps}
+      style={style}
+      className={`focus-ring inline-flex shrink-0 items-center justify-center gap-2 font-semibold transition duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60 ${variants[variant]} ${sizes[size]} ${className}`}
+    >
       {loading && <Loader2 size={17} className="animate-spin" />}
       {children}
     </button>
@@ -27,13 +41,14 @@ export function Card({ children, className = "", ...props }: React.HTMLAttribute
   return <div {...props} className={`rounded-lg border border-line bg-white shadow-soft ${className}`}>{children}</div>;
 }
 
-export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "blue" | "gold" | "red" }) {
+export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "blue" | "gold" | "red" | "dark" }) {
   const tones = {
     neutral: "bg-neutral-100 text-neutral-700",
     green: "bg-mint/12 text-mint",
     blue: "bg-sea/10 text-sea",
-    gold: "bg-saffron/15 text-neutral-800",
-    red: "bg-berry/10 text-berry"
+    gold: "bg-saffron/15 text-neutral-900",
+    red: "bg-berry/10 text-berry",
+    dark: "bg-ink text-white"
   };
   return <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
 }
@@ -56,7 +71,7 @@ export function Field({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 h-12 w-full rounded-md border border-line bg-white px-3 text-sm outline-none transition focus:border-sea focus:ring-4 focus:ring-sea/10"
+        className="mt-1 h-12 w-full rounded-md border border-line bg-white px-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-sea focus:ring-4 focus:ring-sea/10"
       />
     </label>
   );
@@ -73,7 +88,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function Tabs({ items, active, onChange }: { items: string[]; active: string; onChange: (item: string) => void }) {
   return (
-    <div className="inline-flex rounded-md border border-line bg-white p-1">
+    <div className="inline-flex rounded-md border border-line bg-white p-1 shadow-sm">
       {items.map((item) => (
         <button key={item} onClick={() => onChange(item)} className={`h-9 rounded px-3 text-sm font-semibold transition ${active === item ? "bg-ink text-white" : "text-neutral-500 hover:bg-neutral-100"}`}>
           {item}
@@ -90,7 +105,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 export function EmptyState({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-dashed border-line bg-paper p-6 text-center">
-      <p className="font-semibold">{title}</p>
+      <p className="text-lg font-semibold">{title}</p>
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-neutral-500">{text}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -98,7 +113,7 @@ export function EmptyState({ title, text, action }: { title: string; text: strin
 }
 
 export function Toast({ children }: { children: React.ReactNode }) {
-  return <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white shadow-soft animate-rise">{children}</div>;
+  return <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white shadow-premium animate-rise">{children}</div>;
 }
 
 export function Modal({
@@ -115,7 +130,7 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-lg border border-line bg-white p-4 shadow-soft animate-rise">
+      <div className="w-full max-w-lg rounded-lg border border-line bg-white p-4 shadow-premium animate-rise">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold">{title}</h2>
           <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-md border border-line text-sm font-semibold">×</button>
@@ -186,7 +201,7 @@ export function MetricCard({ label, value, hint, icon }: { label: string; value:
   );
 }
 
-export function ProductCard({ product, image, accent = "#101217" }: { product: Product; image?: string; accent?: string }) {
+export function ProductCard({ product, image, accent = "#0D1117" }: { product: Product; image?: string; accent?: string }) {
   return (
     <article className="overflow-hidden rounded-lg border border-line bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-premium">
       <div className="relative aspect-[4/3] bg-neutral-100">
