@@ -236,6 +236,11 @@ export default function PublicStorePage() {
           </div>
           <p className="text-sm leading-6 opacity-70">{experience.subhead}</p>
         </div>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {["Популярное", "Новинки", "Подарки", "С доставкой"].map((label) => (
+            <span key={label} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: borderColor(isDark) }}>{label}</span>
+          ))}
+        </div>
         <div className={`grid gap-4 ${theme.code === "halal-market" ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
           {products.map((product, index) => (
             <ProductTile key={getKey(product)} product={product} index={index} theme={theme} cartValue={cart[getKey(product)] || 0} onChange={change} />
@@ -355,6 +360,9 @@ export default function PublicStorePage() {
       </footer>
 
       <MobileStickyBar total={total} totalCount={totalCount} theme={theme} whatsapp={whatsapp} />
+      <a href="#checkout" className="fixed bottom-5 right-5 z-40 hidden h-12 items-center rounded-md bg-ink px-4 text-sm font-semibold text-white shadow-premium md:inline-flex">
+        Оставить заявку
+      </a>
     </main>
   );
 }

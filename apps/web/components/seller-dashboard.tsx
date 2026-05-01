@@ -235,6 +235,20 @@ export function SellerDashboard() {
             </div>
           </Card>
 
+          <section className="grid gap-3 md:grid-cols-3">
+            {[
+              ["Store health", "Хорошо", "Витрина опубликована и доступна"],
+              ["Checkout flow", leads.length > 0 ? "Активен" : "Ожидает", "Появится после первой заявки"],
+              ["Контент", products.length > 2 ? "Нормально" : "Нужно усилить", "Добавьте 6+ товаров и отзывы"]
+            ].map(([title, status, text]) => (
+              <Card key={title as string} className="p-4">
+                <p className="text-xs font-semibold text-neutral-500">{title as string}</p>
+                <p className="mt-2 text-xl font-semibold">{status as string}</p>
+                <p className="mt-2 text-sm text-neutral-600">{text as string}</p>
+              </Card>
+            ))}
+          </section>
+
         <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="overflow-hidden">
             <div className="grid lg:grid-cols-[1fr_340px]">

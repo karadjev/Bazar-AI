@@ -21,10 +21,10 @@ export function Button({
     dark: "bg-ink text-white shadow-[0_14px_34px_rgba(13,17,23,0.22)] hover:bg-neutral-800"
   };
   const sizes: Record<ButtonSize, string> = {
-    sm: "h-9 rounded-md px-3 text-xs",
-    md: "h-11 rounded-md px-4 text-sm",
-    lg: "h-12 rounded-md px-5 text-sm",
-    icon: "h-11 w-11 rounded-md p-0 text-sm"
+    sm: "h-9 rounded-xl px-3 text-xs",
+    md: "h-11 rounded-xl px-4 text-sm",
+    lg: "h-12 rounded-xl px-5 text-sm",
+    icon: "h-11 w-11 rounded-xl p-0 text-sm"
   };
   const { style, ...buttonProps } = props;
   return (
@@ -40,7 +40,7 @@ export function Button({
 }
 
 export function Card({ children, className = "", ...props }: React.HTMLAttributes<HTMLDivElement> & { children: React.ReactNode }) {
-  return <div {...props} className={`rounded-lg border border-line bg-white shadow-soft ${className}`}>{children}</div>;
+  return <div {...props} className={`rounded-2xl border border-line bg-white shadow-soft ${className}`}>{children}</div>;
 }
 
 export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "blue" | "gold" | "red" | "dark" }) {
@@ -73,7 +73,7 @@ export function Field({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 h-12 w-full rounded-md border border-line bg-white px-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-sea focus:ring-4 focus:ring-sea/10"
+        className="mt-1 h-12 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-sea focus:ring-4 focus:ring-sea/10"
       />
     </label>
   );
@@ -83,7 +83,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`h-12 w-full rounded-md border border-line bg-white px-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-sea focus:ring-4 focus:ring-sea/10 ${props.className || ""}`}
+      className={`h-12 w-full rounded-xl border border-line bg-white px-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-sea focus:ring-4 focus:ring-sea/10 ${props.className || ""}`}
     />
   );
 }
@@ -257,7 +257,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section id={id} className={`shell py-14 md:py-20 ${className}`}>
+    <section id={id} className={`shell animate-reveal py-14 md:py-20 ${className}`}>
       {(eyebrow || title || text) && (
         <div className="mb-8 md:mb-10">
           {eyebrow && <Badge tone="blue">{eyebrow}</Badge>}
@@ -285,6 +285,18 @@ export function Header() {
           <Link href="/dashboard" className="hover:text-ink">Dashboard</Link>
         </nav>
         <Link href="/onboarding" className="inline-flex h-10 items-center rounded-2xl bg-ink px-4 text-sm font-semibold text-white">Создать магазин</Link>
+      </div>
+      <div className="shell mb-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
+        {[
+          ["/features", "Features"],
+          ["/pricing", "Pricing"],
+          ["/templates", "Templates"],
+          ["/dashboard", "Dashboard"]
+        ].map(([href, label]) => (
+          <Link key={href} href={href} className="inline-flex h-8 shrink-0 items-center rounded-xl border border-line bg-white px-3 text-xs font-semibold text-neutral-600">
+            {label}
+          </Link>
+        ))}
       </div>
     </header>
   );

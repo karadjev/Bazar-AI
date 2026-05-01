@@ -155,8 +155,11 @@ export function OnboardingFlow() {
           <div>
             <Badge tone="gold">Premium wizard</Badge>
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-balance md:text-6xl">
-              Соберите витрину, которую можно сразу отправить клиенту
+              Соберите витрину, которую не стыдно показать первому клиенту
             </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-600 md:text-base">
+              Мы ведем вас пошагово: от ниши до готовой ссылки. Каждый шаг сразу отражается в live preview.
+            </p>
           </div>
           <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
             <Stepper steps={steps} active={step} />
@@ -312,6 +315,10 @@ export function OnboardingFlow() {
           </section>
 
           <aside className="lg:sticky lg:top-24 lg:h-fit">
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-neutral-600">
+              <span>Live preview</span>
+              <span>mobile-first</span>
+            </div>
             <PhonePreview form={form} theme={selectedTheme} />
           </aside>
         </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { FeatureCard, Footer, Header, PricingCard, Section, StepCard, StorePreviewCard } from "@/components/ui-kit";
 import { storefrontThemes } from "@/lib/themes";
@@ -15,20 +16,27 @@ const faq = [
   "Есть ли мобильная версия storefront?",
   "Можно ли редактировать тексты без кода?"
 ];
+const socialProof = [
+  "120+ магазинов создано",
+  "4.9/5 rating",
+  "Local businesses love us"
+];
+const trustPoints = ["Secure checkout ready", "Mobile optimized", "Без кода", "Для малого бизнеса"];
 
 export function LandingPage() {
   return (
     <main className="min-h-screen bg-paper text-ink">
       <Header />
-      <section className="shell grid gap-10 py-14 md:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+      <section className="shell grid gap-10 py-10 md:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
-          <p className="text-sm font-semibold text-neutral-500">AI storefront platform</p>
+          <p className="inline-flex rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-neutral-600">AI storefront platform for local brands</p>
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight md:text-6xl">
-            Запускайте premium-магазин как продукт, а не как шаблон
+            Создай магазин за 5 минут и получай заявки без кода
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-neutral-600">
-            BuildYourStore.ai генерирует storefront под нишу, подготавливает mobile-first checkout и помогает принимать заявки без команды разработки.
+            BuildYourStore.ai для малого бизнеса: storefront + onboarding + dashboard в одном продукте. Выглядит как premium SaaS и запускается в тот же день.
           </p>
+          <p className="mt-3 text-sm font-semibold text-neutral-700">Что это? Платформа storefront. Для кого? Локальный бизнес. Что получу? Готовый магазин + лиды.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href="/onboarding" className="inline-flex h-12 items-center justify-center rounded-2xl bg-ink px-5 text-sm font-semibold text-white">
               Создать магазин
@@ -37,16 +45,29 @@ export function LandingPage() {
               Смотреть примеры
             </Link>
           </div>
+          <div className="mt-6 grid gap-2 sm:grid-cols-3">
+            {socialProof.map((item) => (
+              <div key={item} className="rounded-2xl border border-line bg-white px-3 py-3 text-xs font-semibold text-neutral-600">{item}</div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {trustPoints.map((item) => (
+              <span key={item} className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-neutral-600">{item}</span>
+            ))}
+          </div>
         </div>
-        <div className="rounded-3xl border border-line bg-white p-6 shadow-premium">
-          <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-violet-700 p-6 text-white">
-            <p className="text-xs font-semibold text-white/80">Live preview</p>
+        <div className="rounded-3xl border border-line bg-white p-4 shadow-premium md:p-6">
+          <div className="rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-violet-700 p-6 text-white">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-white/80">Live preview</p>
+              <span className="rounded-full bg-white/15 px-2 py-1 text-[11px] font-semibold">new lead</span>
+            </div>
             <p className="mt-2 text-2xl font-semibold">Oud House</p>
             <p className="mt-2 text-sm text-white/80">Luxury Perfume storefront</p>
-            <div className="mt-6 grid gap-2">
-              <div className="h-10 rounded-xl bg-white/20" />
-              <div className="h-10 rounded-xl bg-white/20" />
-              <div className="h-10 rounded-xl bg-white/20" />
+            <div className="mt-6 space-y-2">
+              <div className="flex items-center justify-between rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold"><span>Oud Classic 50ml</span><span>4 500 ₽</span></div>
+              <div className="flex items-center justify-between rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold"><span>Amber Gift Set</span><span>7 200 ₽</span></div>
+              <div className="h-10 rounded-xl bg-emerald-400/90" />
             </div>
           </div>
           <Link href="/store/oud-house" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
@@ -54,6 +75,24 @@ export function LandingPage() {
           </Link>
         </div>
       </section>
+
+      <Section eyebrow="Product screenshots" title="Реальные экраны продукта, а не абстракция" text="Dashboard, storefront и onboarding screen в живом формате.">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[
+            { title: "Dashboard screenshot", image: storefrontThemes[6].image },
+            { title: "Storefront screenshot", image: storefrontThemes[3].image },
+            { title: "Onboarding screenshot", image: storefrontThemes[1].image }
+          ].map((item) => (
+            <article key={item.title} className="overflow-hidden rounded-2xl border border-line bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-premium">
+              <div className="relative aspect-[4/3]">
+                <Image src={item.image} alt={item.title} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 380px" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                <p className="absolute bottom-3 left-3 rounded-lg bg-white/90 px-2 py-1 text-xs font-semibold text-neutral-700">{item.title}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </Section>
 
       <Section id="how" eyebrow="Как это работает" title="Простой flow от идеи до продаж" text="Wizard, генерация витрины и моментальный запуск без ручной верстки.">
         <div className="grid gap-4 md:grid-cols-3">
@@ -82,6 +121,39 @@ export function LandingPage() {
           <FeatureCard title="No-code edits" text="Изменения через dashboard и onboarding wizard." />
           <FeatureCard title="Niche-ready" text="Стиль и UX адаптируются под конкретную нишу." />
           <FeatureCard title="Fast launch" text="Сайт доступен за минуты, а не за недели." />
+        </div>
+      </Section>
+
+      <Section eyebrow="Для кого" title="BuildYourStore.ai подходит тем, кому нужен результат, а не конструктор">
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            ["Локальные бренды", "Нужен быстрый запуск витрины и лиды без найма команды."],
+            ["Малые eCom команды", "Нужен быстрый go-to-market для новых ниш и городов."],
+            ["Агенты/фрилансеры", "Нужно запускать клиентам storefront в repeatable формате."]
+          ].map(([title, text]) => (
+            <FeatureCard key={title} title={title} text={text} />
+          ))}
+        </div>
+      </Section>
+
+      <Section eyebrow="Comparison" title="Сайт самому vs BuildYourStore.ai">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-line bg-white p-5">
+            <p className="text-lg font-semibold">Сайт самому</p>
+            <ul className="mt-4 space-y-2 text-sm text-neutral-600">
+              <li>2-6 недель на дизайн, верстку и сборку flow</li>
+              <li>Отдельно подключение lead capture и CRM</li>
+              <li>Сложный mobile polish и UX-контроль</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-ink bg-ink p-5 text-white">
+            <p className="text-lg font-semibold">BuildYourStore.ai</p>
+            <ul className="mt-4 space-y-2 text-sm text-white/80">
+              <li>Запуск storefront за минуты через onboarding wizard</li>
+              <li>Готовые заявки и dashboard из коробки</li>
+              <li>Mobile-first UX и готовые ниши/шаблоны</li>
+            </ul>
+          </div>
         </div>
       </Section>
 
