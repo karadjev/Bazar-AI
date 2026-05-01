@@ -31,6 +31,10 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
+	if !h.isOwnerStore(r, req.StoreID) {
+		httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "store is not accessible")
+		return
+	}
 	if err := validator.Length(req.Title, "title", 2, 120); err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
 		return
@@ -62,8 +66,17 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) ListByStore(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("storeID")
+	if err := validator.UUID(storeID, "store_id"); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	if !h.isOwnerStore(r, storeID) {
+		httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "store is not accessible")
+		return
+	}
 	page, limit := httpx.Page(r)
-	products, total, err := h.repo.ProductsByStore(r.Context(), r.PathValue("storeID"), limit, httpx.Offset(page, limit))
+	products, total, err := h.repo.ProductsByStore(r.Context(), storeID, limit, httpx.Offset(page, limit))
 	if err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not load products")
 		return
@@ -75,6 +88,10 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 	product, err := h.repo.ProductByID(r.Context(), r.PathValue("id"))
 	if err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		return
+	}
+	if !h.isOwnerStore(r, product.StoreID) {
+		httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "product is not accessible")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, product)
@@ -89,6 +106,10 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 	current, err := h.repo.ProductByID(r.Context(), id)
 	if err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		return
+	}
+	if !h.isOwnerStore(r, current.StoreID) {
+		httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "product is not accessible")
 		return
 	}
 	var req platform.Product
@@ -132,10 +153,30 @@ func (h Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
+	current, err := h.repo.ProductByID(r.Context(), id)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		return
+	}
+	if !h.isOwnerStore(r, current.StoreID) {
+		httpx.ErrorWithRequest(w, r, http.StatusForbidden, "forbidden", "product is not accessible")
+		return
+	}
 	if err := h.repo.DeleteProduct(r.Context(), id); err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not delete product")
 		return
 	}
 	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: auth.UserFromRequest(r).ID, Action: "product.deleted", EntityType: "product", EntityID: id})
 	httpx.JSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+func (h Handler) isOwnerStore(r *http.Request, storeID string) bool {
+	if h.repo == nil {
+		return true
+	}
+	store, err := h.repo.StoreByID(r.Context(), storeID)
+	if err != nil {
+		return false
+	}
+	return store.OwnerID == auth.UserFromRequest(r).ID
 }
