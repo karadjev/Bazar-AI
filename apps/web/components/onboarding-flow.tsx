@@ -27,9 +27,9 @@ import {
   Wand2,
   type LucideIcon
 } from "lucide-react";
-import { clearSession, createStoreOnboarding, Store } from "@/lib/api";
+import { clearSession, createStoreOnboarding, getToken, registerDemo, Store } from "@/lib/api";
 import { setGuestMode } from "@/lib/auth";
-import { Badge, Button, Field, Stepper, Toast } from "@/components/ui-kit";
+import { Badge, Button, Field, Input, Stepper, Toast } from "@/components/ui-kit";
 import { storefrontThemes, themeByNiche } from "@/lib/themes";
 
 type Niche = {
@@ -89,6 +89,9 @@ export function OnboardingFlow() {
     setGenerationIndex(0);
     await new Promise((resolve) => setTimeout(resolve, 2300));
     try {
+      if (!getToken() && form.email.trim() && form.password.trim().length >= 8) {
+        await registerDemo(form.email.trim(), form.password.trim()).catch(() => null);
+      }
       const input = {
         niche: form.niche,
         name: form.name,
@@ -221,6 +224,17 @@ export function OnboardingFlow() {
                     <MapPin size={18} className="text-sea" />
                     <p className="mt-3 text-sm font-semibold">{form.city || "Город"}</p>
                     <p className="mt-1 text-xs leading-5 text-neutral-500">Эта география попадет в доставку, доверие и CTA.</p>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-lg border border-line bg-paper p-4">
+                  <p className="text-xs font-semibold uppercase text-neutral-500">Аккаунт владельца</p>
+                  <p className="mt-2 text-sm text-neutral-600">Чтобы сохранить доступ к магазину, укажите email и пароль (минимум 8 символов).</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <Field label="Email" value={form.email} onChange={(email) => setForm({ ...form, email })} placeholder="owner@store.ru" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">Пароль</p>
+                      <Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Минимум 8 символов" />
+                    </div>
                   </div>
                 </div>
               </WizardPanel>

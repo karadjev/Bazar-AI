@@ -143,6 +143,15 @@ export async function registerDemo(email: string, password: string) {
   return result;
 }
 
+export async function loginDemo(email: string, password: string) {
+  const result = await api<{ access_token: string; refresh_token: string }>("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  setSession(result.access_token, result.refresh_token);
+  return result;
+}
+
 export async function authMe() {
   return api<{ user: AuthUser }>("/api/v1/auth/me");
 }

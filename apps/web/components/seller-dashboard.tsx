@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, money, Product, Store, updateProduct } from "@/lib/api";
+import { api, authMe, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, loginDemo, money, Product, registerDemo, Store, updateProduct } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
 import { Badge, Button, Card, EmptyState, Input, MetricCard, Modal, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
@@ -47,6 +47,12 @@ export function SellerDashboard() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState({ title: "", description: "", price: "" });
   const [saving, setSaving] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authName, setAuthName] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -82,6 +88,24 @@ export function SellerDashboard() {
       }
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    async function loadUser() {
+      if (!getToken()) {
+        setAuthName("");
+        return;
+      }
+      try {
+        const response = await authMe();
+        setAuthName(response.user.name || response.user.email || "Аккаунт подключен");
+      } catch {
+        clearSession();
+        clearGuestMode();
+        setAuthName("");
+      }
+    }
+    loadUser();
   }, []);
 
   const todaySales = useMemo(() => analytics.gmv || leads.length * 290000, [analytics.gmv, leads.length]);
@@ -216,6 +240,28 @@ export function SellerDashboard() {
     }
   }
 
+  async function submitAuth() {
+    if (!authEmail.trim() || authPassword.trim().length < 8) {
+      showToast("Введите email и пароль от 8 символов");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      if (authMode === "login") {
+        await loginDemo(authEmail.trim(), authPassword.trim());
+      } else {
+        await registerDemo(authEmail.trim(), authPassword.trim());
+      }
+      setAuthModalOpen(false);
+      showToast("Аккаунт подключен");
+      location.reload();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Не удалось подключить аккаунт");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-paper pb-24 text-ink premium-grid md:pb-6">
       {toast && <Toast>{toast}</Toast>}
@@ -251,9 +297,11 @@ export function SellerDashboard() {
                   {storeLink}
                   <ArrowUpRight size={13} />
                 </Link>
+                <p className="mt-1 text-xs text-neutral-500">{authName ? `Аккаунт: ${authName}` : "Гостевой режим: подключите аккаунт для безопасного доступа"}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {!authName && <Button variant="secondary" onClick={() => setAuthModalOpen(true)}>Подключить аккаунт</Button>}
               <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться</Button>
               <Button onClick={createAIProduct}><Plus size={17} />Добавить товар</Button>
             </div>
@@ -482,6 +530,20 @@ export function SellerDashboard() {
             <Button variant="secondary" className="flex-1" onClick={() => setEditingProduct(null)} disabled={saving}>Отмена</Button>
             <Button className="flex-1" onClick={saveEdit} loading={saving}>Сохранить</Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal title={authMode === "login" ? "Вход в аккаунт" : "Создание аккаунта"} open={authModalOpen} onClose={() => !authLoading && setAuthModalOpen(false)}>
+        <div className="space-y-3">
+          <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-sm font-semibold">
+            <button type="button" onClick={() => setAuthMode("login")} className={`rounded-md px-3 py-1 ${authMode === "login" ? "bg-white shadow-sm" : "text-neutral-500"}`}>Войти</button>
+            <button type="button" onClick={() => setAuthMode("register")} className={`rounded-md px-3 py-1 ${authMode === "register" ? "bg-white shadow-sm" : "text-neutral-500"}`}>Регистрация</button>
+          </div>
+          <Input value={authEmail} placeholder="Email" onChange={(event) => setAuthEmail(event.target.value)} />
+          <Input type="password" value={authPassword} placeholder="Пароль (минимум 8 символов)" onChange={(event) => setAuthPassword(event.target.value)} />
+          <Button className="w-full" onClick={submitAuth} loading={authLoading}>
+            {authMode === "login" ? "Войти и синхронизировать" : "Создать и синхронизировать"}
+          </Button>
         </div>
       </Modal>
     </main>
