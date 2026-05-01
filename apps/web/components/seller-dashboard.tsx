@@ -21,9 +21,9 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, demoProducts, demoStore, getToken, Lead, money, Product, Store } from "@/lib/api";
+import { api, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, money, Product, Store, updateProduct } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
-import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
+import { Badge, Button, Card, EmptyState, Input, MetricCard, Modal, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
 type ListResponse<T> = T[] | { data?: T[] };
 
@@ -44,6 +44,9 @@ export function SellerDashboard() {
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [analytics, setAnalytics] = useState({ stores: 0, leads: 0, orders: 0, gmv: 0 });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", description: "", price: "" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -154,6 +157,63 @@ export function SellerDashboard() {
 
   function showPlaceholder(label: string) {
     showToast(`${label} скоро появится`);
+  }
+
+  function startEdit(product: Product) {
+    if (!product.id || product.id.startsWith("demo")) {
+      showToast("Редактирование demo-товара скоро будет доступно");
+      return;
+    }
+    setEditingProduct(product);
+    setEditForm({
+      title: product.title || "",
+      description: product.short_description || product.description || "",
+      price: String(Math.round((product.price || 0) / 100))
+    });
+  }
+
+  async function saveEdit() {
+    if (!editingProduct?.id) return;
+    const nextPrice = Number(editForm.price);
+    if (!editForm.title.trim() || !Number.isFinite(nextPrice) || nextPrice <= 0) {
+      showToast("Проверьте название и цену");
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await updateProduct(editingProduct.id, {
+        title: editForm.title.trim(),
+        description: editForm.description.trim() || "Описание товара",
+        short_description: editForm.description.trim() || "Описание товара",
+        price: Math.round(nextPrice * 100),
+        currency: editingProduct.currency || "RUB",
+        stock_quantity: editingProduct.stock_quantity || 10,
+        status: "active",
+        image: editingProduct.images?.[0] || editingProduct.image || ""
+      });
+      setProducts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+      setEditingProduct(null);
+      showToast("Товар обновлен");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Не удалось обновить товар");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeProduct(product: Product) {
+    if (!product.id || product.id.startsWith("demo")) {
+      showToast("Удаление demo-товара скоро будет доступно");
+      return;
+    }
+    if (!confirm(`Удалить товар "${product.title}"?`)) return;
+    try {
+      await deleteProduct(product.id);
+      setProducts((prev) => prev.filter((item) => item.id !== product.id));
+      showToast("Товар удален");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Не удалось удалить товар");
+    }
   }
 
   return (
@@ -386,7 +446,13 @@ export function SellerDashboard() {
                   <EmptyState title="Добавьте первый товар и начните принимать заказы" text="AI подготовит название, описание, цену и карточку для витрины." action={<Button onClick={createAIProduct}>Создать товар с AI</Button>} />
                 </div>
               ) : products.slice(0, 3).map((product, index) => (
-                <ProductCard key={product.id || product.title} product={product} image={product.images?.[0] || demoProducts[index]?.images?.[0]} accent="#92385F" />
+                <div key={product.id || product.title} className="space-y-2">
+                  <ProductCard product={product} image={product.images?.[0] || demoProducts[index]?.images?.[0]} accent="#92385F" />
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" className="flex-1" onClick={() => startEdit(product)}>Редактировать</Button>
+                    <Button variant="ghost" size="sm" className="flex-1" onClick={() => removeProduct(product)}>Удалить</Button>
+                  </div>
+                </div>
               ))}
             </div>
           </Card>
@@ -406,6 +472,18 @@ export function SellerDashboard() {
         <button onClick={() => showPlaceholder("Заказы")} className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><PackageCheck size={18} className="mx-auto" />Заказы</button>
         <button onClick={() => showPlaceholder("AI")} className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Sparkles size={18} className="mx-auto" />AI</button>
       </nav>
+
+      <Modal title="Редактировать товар" open={Boolean(editingProduct)} onClose={() => !saving && setEditingProduct(null)}>
+        <div className="space-y-3">
+          <Input value={editForm.title} placeholder="Название товара" onChange={(event) => setEditForm((prev) => ({ ...prev, title: event.target.value }))} />
+          <Input value={editForm.description} placeholder="Краткое описание" onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))} />
+          <Input type="number" min={1} value={editForm.price} placeholder="Цена в рублях" onChange={(event) => setEditForm((prev) => ({ ...prev, price: event.target.value }))} />
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setEditingProduct(null)} disabled={saving}>Отмена</Button>
+            <Button className="flex-1" onClick={saveEdit} loading={saving}>Сохранить</Button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }

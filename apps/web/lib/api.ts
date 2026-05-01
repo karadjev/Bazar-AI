@@ -191,3 +191,24 @@ export async function createLead(slug: string, payload: { customerName: string; 
     body: JSON.stringify(payload)
   });
 }
+
+export async function updateProduct(productId: string, payload: {
+  title: string;
+  description: string;
+  short_description?: string;
+  price: number;
+  currency?: string;
+  stock_quantity?: number;
+  status?: string;
+  image?: string;
+  featured?: boolean;
+}) {
+  return api<Product>(`/api/v1/products/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteProduct(productId: string) {
+  return api<{ status: string }>(`/api/v1/products/${productId}`, { method: "DELETE" });
+}
