@@ -125,6 +125,21 @@ export function SellerDashboard() {
       return lead.customer_name.toLowerCase().includes(q) || lead.phone.toLowerCase().includes(q) || lead.message.toLowerCase().includes(q);
     });
   }, [leadFilter, leadQuery, leads]);
+  const visibleLeads = useMemo(() => {
+    return [...filteredLeads].sort((a, b) => {
+      const priority = (status: string) => {
+        if (status === "new") return 0;
+        if (status === "contacted") return 1;
+        if (status === "closed") return 2;
+        return 3;
+      };
+      const byStatus = priority(a.status) - priority(b.status);
+      if (byStatus !== 0) return byStatus;
+      const aTime = a.created_at ? Date.parse(a.created_at) : 0;
+      const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+      return bTime - aTime;
+    });
+  }, [filteredLeads]);
 
   async function createAIProduct() {
     try {
@@ -454,7 +469,7 @@ export function SellerDashboard() {
                 <h2 className="text-base font-semibold">Заявки клиентов</h2>
                 <p className="text-xs text-neutral-500">Список обращений и сумма заказа. Статусы обновляются backend-процессом.</p>
               </div>
-              <Badge tone="green">{filteredLeads.length} из {leads.length}</Badge>
+              <Badge tone="green">{visibleLeads.length} из {leads.length}</Badge>
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
               <Input value={leadQuery} placeholder="Поиск по клиенту, телефону или тексту" onChange={(event) => setLeadQuery(event.target.value)} />
@@ -483,7 +498,7 @@ export function SellerDashboard() {
                   text="Скопируйте ссылку и отправьте ее клиентам в Telegram, WhatsApp или Instagram."
                   action={<Button onClick={shareStore} variant="secondary"><Share2 size={16} />Поделиться ссылкой</Button>}
                 />
-              ) : filteredLeads.length === 0 ? (
+              ) : visibleLeads.length === 0 ? (
                 <EmptyState
                   title="По этим фильтрам заявок нет"
                   text="Сбросьте поиск или выберите другой статус."
@@ -501,7 +516,7 @@ export function SellerDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.slice(0, 8).map((lead) => (
+                      {visibleLeads.slice(0, 8).map((lead) => (
                         <tr key={lead.id} className="border-t border-line bg-white">
                           <td className="px-3 py-2 font-semibold">{lead.customer_name}</td>
                           <td className="px-3 py-2 text-xs text-neutral-500">{lead.phone}</td>
@@ -512,7 +527,7 @@ export function SellerDashboard() {
                                 value={lead.status}
                                 onChange={(event) => changeLeadStatus(lead, event.target.value as "new" | "contacted" | "closed")}
                                 disabled={leadUpdatingId === lead.id}
-                                className="h-8 rounded-md border border-line bg-white px-2 text-xs font-semibold text-neutral-700 disabled:opacity-60"
+                                className={`h-8 rounded-md border px-2 text-xs font-semibold disabled:opacity-60 ${leadSelectClass(lead.status)}`}
                               >
                                 <option value="new">Новая</option>
                                 <option value="contacted">В работе</option>
@@ -644,4 +659,11 @@ function normalizeError(error: unknown, fallback: string) {
   if (message.includes("not found")) return "Данные не найдены или уже удалены";
   if (message.includes("request failed")) return fallback;
   return error.message;
+}
+
+function leadSelectClass(status: string) {
+  if (status === "new") return "border-emerald-300 bg-emerald-50 text-emerald-800";
+  if (status === "contacted") return "border-sky-300 bg-sky-50 text-sky-800";
+  if (status === "closed") return "border-slate-300 bg-slate-100 text-slate-700";
+  return "border-line bg-white text-neutral-700";
 }
