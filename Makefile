@@ -2,7 +2,7 @@ DEV_COMPOSE=docker compose --env-file deployments/env/dev.env -f deployments/doc
 STAGING_COMPOSE=docker compose --env-file deployments/env/staging.env -f deployments/docker-compose.staging.yml
 PROD_COMPOSE=docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml
 
-.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps ssl-dummy ssl-init ssl-renew npm-verbose api web
+.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload ssl-dummy ssl-init ssl-renew npm-verbose api web
 
 env-init:
 	cp -n deployments/env/dev.env.example deployments/env/dev.env || true
@@ -52,6 +52,8 @@ prod-up:
 prod-deploy:
 	$(PROD_COMPOSE) pull || true
 	$(PROD_COMPOSE) up -d --build --remove-orphans
+	$(PROD_COMPOSE) exec -T nginx nginx -t
+	$(PROD_COMPOSE) exec -T nginx nginx -s reload
 
 prod-down:
 	$(PROD_COMPOSE) down
@@ -61,6 +63,12 @@ prod-logs:
 
 prod-ps:
 	$(PROD_COMPOSE) ps
+
+prod-nginx-validate:
+	$(PROD_COMPOSE) exec -T nginx nginx -t
+
+prod-nginx-reload: prod-nginx-validate
+	$(PROD_COMPOSE) exec -T nginx nginx -s reload
 
 ssl-dummy:
 	DOMAIN=$$(grep '^APP_DOMAIN=' deployments/env/prod.env | cut -d= -f2); docker run --rm -v bazar-ai-prod_letsencrypt:/etc/letsencrypt alpine:3.22 sh -c "apk add --no-cache openssl >/dev/null && mkdir -p /etc/letsencrypt/live/$$DOMAIN && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout /etc/letsencrypt/live/$$DOMAIN/privkey.pem -out /etc/letsencrypt/live/$$DOMAIN/fullchain.pem -subj '/CN=$$DOMAIN'"

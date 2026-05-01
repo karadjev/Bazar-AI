@@ -55,6 +55,14 @@ docker compose --env-file deployments/env/prod.env -f deployments/docker-compose
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml build --pull frontend api
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml --profile ops run --rm migrate
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml up -d
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -t
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -s reload
+```
+
+Pipeline-friendly one-liner:
+
+```bash
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -t && docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -s reload
 ```
 
 ## 4) Post-deploy checks
