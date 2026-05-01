@@ -56,6 +56,18 @@ export function SellerDashboard() {
   const [leadQuery, setLeadQuery] = useState("");
   const [leadFilter, setLeadFilter] = useState<"all" | "new" | "contacted" | "closed">("all");
   const [leadUpdatingId, setLeadUpdatingId] = useState("");
+  const [uploadingProductId, setUploadingProductId] = useState("");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
+  const [createForm, setCreateForm] = useState({ title: "", description: "", price: "" });
+
+  async function reloadProducts(storeId: string) {
+    if (!storeId || !getToken()) return;
+    const productsResponse = await api<ListResponse<Product>>(`/api/v1/stores/${storeId}/products`).catch(() => null);
+    const loadedProducts = productsResponse ? (Array.isArray(productsResponse) ? productsResponse : productsResponse.data || []) : [];
+    setProducts(loadedProducts.length ? loadedProducts : demoProducts);
+  }
 
   useEffect(() => {
     async function load() {
@@ -71,9 +83,11 @@ export function SellerDashboard() {
         setStore(current);
         const guestSession = !getToken();
 
-        const productsResponse = guestSession ? null : await api<ListResponse<Product>>(`/api/v1/stores/${current.id}/products`).catch(() => null);
-        const loadedProducts = productsResponse ? (Array.isArray(productsResponse) ? productsResponse : productsResponse.data || []) : [];
-        setProducts(loadedProducts.length ? loadedProducts : demoProducts);
+        if (guestSession) {
+          setProducts(demoProducts);
+        } else {
+          await reloadProducts(current.id);
+        }
 
         const loadedLeads = await dashboardLeads().catch(() => ({ data: [] as Lead[] }));
         setLeads(loadedLeads.data || []);
@@ -159,7 +173,7 @@ export function SellerDashboard() {
           stock_quantity: 10
         })
       });
-      setProducts([product, ...products]);
+      setProducts((prev) => [product, ...prev]);
       showToast("AI создал товар и добавил его в каталог");
     } catch {
       showToast("Demo: AI подготовил карточку товара");
@@ -167,21 +181,31 @@ export function SellerDashboard() {
     }
   }
 
-  async function uploadImage(file: File) {
-    const target = products[0];
-    if (!target?.id || target.id.startsWith("demo")) {
+  async function uploadImageForProduct(product: Product, file: File) {
+    if (!product?.id || product.id.startsWith("demo")) {
       showToast("Сначала создайте реальный товар");
       return;
     }
-    const body = new FormData();
-    body.set("image", file);
-    const token = localStorage.getItem("bazar_access_token") || "";
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/products/${target.id}/images`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body
-    });
-    showToast("Фото добавлено к первому товару");
+    setUploadingProductId(product.id);
+    try {
+      const body = new FormData();
+      body.set("image", file);
+      const token = localStorage.getItem("bazar_access_token") || "";
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/products/${product.id}/images`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body
+      });
+      if (!response.ok) {
+        throw new Error("Не удалось загрузить фото");
+      }
+      await reloadProducts(store.id);
+      showToast("Фото товара обновлено");
+    } catch (err) {
+      showToast(normalizeError(err, "Не удалось загрузить фото"));
+    } finally {
+      setUploadingProductId("");
+    }
   }
 
   async function connectTelegram() {
@@ -286,6 +310,46 @@ export function SellerDashboard() {
       showToast(normalizeError(err, "Не удалось подключить аккаунт"));
     } finally {
       setAuthLoading(false);
+    }
+  }
+
+  async function createManualProduct() {
+    const title = createForm.title.trim();
+    const priceRub = Number(createForm.price);
+    if (!store.id || store.id.startsWith("demo")) {
+      showToast("Сначала создайте реальный магазин");
+      return;
+    }
+    if (!title || !Number.isFinite(priceRub) || priceRub <= 0) {
+      showToast("Укажите название и корректную цену");
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await api<Product>(`/api/v1/stores/${store.id}/products`, {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          description: createForm.description.trim() || "Описание товара",
+          short_description: createForm.description.trim() || "Описание товара",
+          price: Math.round(priceRub * 100),
+          currency: "RUB",
+          stock_quantity: 10
+        })
+      });
+      if (createImageFile) {
+        await uploadImageForProduct(created, createImageFile);
+      } else {
+        await reloadProducts(store.id);
+      }
+      setCreateForm({ title: "", description: "", price: "" });
+      setCreateImageFile(null);
+      setCreateModalOpen(false);
+      showToast("Товар добавлен");
+    } catch (err) {
+      showToast(normalizeError(err, "Не удалось добавить товар"));
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -453,7 +517,7 @@ export function SellerDashboard() {
                     <Action icon={<Sparkles size={16} />} label="Улучшить витрину с AI" onClick={createAIProduct} />
                     <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
                       <ImagePlus size={16} />Добавить фото
-                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0])} />
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => products[0] && event.target.files?.[0] && uploadImageForProduct(products[0], event.target.files[0])} />
                     </label>
                     <Action icon={<MessageCircle size={16} />} label="Подключить Telegram" onClick={connectTelegram} />
                     <Action icon={<Wand2 size={16} />} label="Экспорт в CRM" onClick={() => showPlaceholder("Экспорт в CRM")} />
@@ -570,19 +634,33 @@ export function SellerDashboard() {
                 <h2 className="text-xl font-semibold">Товары</h2>
                 <p className="mt-1 text-sm text-neutral-500">Добавьте первый товар и начните принимать заявки</p>
               </div>
-              <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI-товар</Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setCreateModalOpen(true)}><ImagePlus size={16} />Добавить вручную</Button>
+                <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI-товар</Button>
+              </div>
             </div>
-            <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {products.length === 0 ? (
                 <div className="md:col-span-3">
                   <EmptyState title="Добавьте первый товар и начните принимать заказы" text="AI подготовит название, описание, цену и карточку для витрины." action={<Button onClick={createAIProduct}>Создать товар с AI</Button>} />
                 </div>
-              ) : products.slice(0, 3).map((product, index) => (
+              ) : products.map((product, index) => (
                 <div key={product.id || product.title} className="space-y-2">
                   <ProductCard product={product} image={product.images?.[0] || demoProducts[index]?.images?.[0]} accent="#92385F" />
-                  <div className="flex gap-2">
+                  <div className="grid gap-2 sm:grid-cols-3">
                     <Button variant="secondary" size="sm" className="flex-1" onClick={() => startEdit(product)}>Редактировать</Button>
                     <Button variant="ghost" size="sm" className="flex-1" onClick={() => removeProduct(product)}>Удалить</Button>
+                    <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold transition hover:bg-paper">
+                      <ImagePlus size={15} />
+                      {uploadingProductId === product.id ? "Загрузка..." : "Фото"}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        disabled={uploadingProductId === product.id}
+                        onChange={(event) => product && event.target.files?.[0] && uploadImageForProduct(product, event.target.files[0])}
+                      />
+                    </label>
                   </div>
                 </div>
               ))}
@@ -628,6 +706,23 @@ export function SellerDashboard() {
           <Button className="w-full" onClick={submitAuth} loading={authLoading}>
             {authMode === "login" ? "Войти и синхронизировать" : "Создать и синхронизировать"}
           </Button>
+        </div>
+      </Modal>
+
+      <Modal title="Новый товар" open={createModalOpen} onClose={() => !creating && setCreateModalOpen(false)}>
+        <div className="space-y-3">
+          <Input value={createForm.title} placeholder="Название товара" onChange={(event) => setCreateForm((prev) => ({ ...prev, title: event.target.value }))} />
+          <Input value={createForm.description} placeholder="Описание товара" onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))} />
+          <Input type="number" min={1} value={createForm.price} placeholder="Цена в рублях" onChange={(event) => setCreateForm((prev) => ({ ...prev, price: event.target.value }))} />
+          <label className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold transition hover:bg-paper">
+            <ImagePlus size={16} />
+            {createImageFile ? `Файл: ${createImageFile.name}` : "Загрузить фото товара"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => setCreateImageFile(event.target.files?.[0] || null)} />
+          </label>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setCreateModalOpen(false)} disabled={creating}>Отмена</Button>
+            <Button className="flex-1" onClick={createManualProduct} loading={creating}>Создать</Button>
+          </div>
         </div>
       </Modal>
     </main>
