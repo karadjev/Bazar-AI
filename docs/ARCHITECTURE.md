@@ -58,6 +58,10 @@ Local development stack:
 - MinIO for product/banner images.
 - RabbitMQ for async notifications and AI jobs.
 
+Deployment operations:
+
+- See `docs/DEPLOY_RUNBOOK.md` for production deploy, health checks, TLS bootstrap, and rollback flow.
+
 Scale path:
 
 - OpenTelemetry traces.
