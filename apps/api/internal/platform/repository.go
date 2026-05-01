@@ -450,6 +450,19 @@ func (r *Repository) LeadsByStore(ctx context.Context, storeID string, limit, of
 	return leads, total, rows.Err()
 }
 
+func (r *Repository) UpdateLeadStatusByOwner(ctx context.Context, leadID, ownerID, status string) (Lead, error) {
+	row := r.db.QueryRow(ctx, `
+		UPDATE leads AS l
+		SET status = $3
+		FROM stores AS s
+		WHERE l.id = $1
+		  AND l.store_id = s.id
+		  AND s.owner_id = $2
+		RETURNING l.id::text, l.store_id::text, l.customer_name, l.phone, COALESCE(l.message, ''), l.status, l.created_at
+	`, leadID, ownerID, status)
+	return scanLead(row)
+}
+
 func (r *Repository) AddGeneration(ctx context.Context, generation AIGeneration) (AIGeneration, error) {
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO ai_generations (user_id, store_id, type, input, output, tokens_used, provider, status, cost)

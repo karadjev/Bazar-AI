@@ -124,6 +124,37 @@ func (h Handler) DashboardLeads(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"data": leads, "meta": map[string]int{"total": len(leads)}})
 }
 
+func (h Handler) UpdateLeadStatus(w http.ResponseWriter, r *http.Request) {
+	ownerID := resolveOwnerID(r)
+	if ownerID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusUnauthorized, "unauthorized", "missing owner context")
+		return
+	}
+	leadID := validator.Text(r.PathValue("id"), 64)
+	if leadID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "lead id is required")
+		return
+	}
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid payload")
+		return
+	}
+	req.Status = strings.ToLower(validator.Text(req.Status, 24))
+	if err := validator.Enum(req.Status, "status", "new", "contacted", "closed"); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	lead, err := h.repo.UpdateLeadStatusByOwner(r.Context(), leadID, ownerID, req.Status)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, lead)
+}
+
 func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
 	ownerID := resolveOwnerID(r)
 	if ownerID == "" {

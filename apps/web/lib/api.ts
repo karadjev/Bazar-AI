@@ -184,6 +184,15 @@ export async function dashboardLeads() {
   return api<{ data: Lead[] }>(`/api/dashboard/leads${guest}`);
 }
 
+export async function updateDashboardLeadStatus(leadId: string, status: "new" | "contacted" | "closed") {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}${guest}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status })
+  });
+}
+
 export async function dashboardAnalytics() {
   const token = getToken();
   const guest = !token ? "?guest=1" : "";

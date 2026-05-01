@@ -108,6 +108,7 @@ func main() {
 	mux.HandleFunc("POST /api/onboarding/create-store", sprintHandler.CreateStore)
 	mux.HandleFunc("GET /api/dashboard/stores", sprintHandler.DashboardStores)
 	mux.HandleFunc("GET /api/dashboard/leads", sprintHandler.DashboardLeads)
+	mux.HandleFunc("PATCH /api/dashboard/leads/{id}", sprintHandler.UpdateLeadStatus)
 	mux.HandleFunc("GET /api/dashboard/analytics", sprintHandler.DashboardAnalytics)
 	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
 	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)

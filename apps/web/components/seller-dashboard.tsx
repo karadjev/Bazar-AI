@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, authMe, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, loginDemo, money, Product, registerDemo, Store, updateProduct } from "@/lib/api";
+import { api, authMe, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, loginDemo, money, Product, registerDemo, Store, updateDashboardLeadStatus, updateProduct } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
 import { Badge, Button, Card, EmptyState, Input, MetricCard, Modal, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
@@ -55,6 +55,7 @@ export function SellerDashboard() {
   const [authName, setAuthName] = useState("");
   const [leadQuery, setLeadQuery] = useState("");
   const [leadFilter, setLeadFilter] = useState<"all" | "new" | "contacted" | "closed">("all");
+  const [leadUpdatingId, setLeadUpdatingId] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -273,6 +274,23 @@ export function SellerDashboard() {
     }
   }
 
+  async function changeLeadStatus(lead: Lead, status: "new" | "contacted" | "closed") {
+    if (!lead.id || lead.id.startsWith("LEAD-DEMO")) {
+      showToast("Для demo-заявок смена статуса скоро будет доступна");
+      return;
+    }
+    setLeadUpdatingId(lead.id);
+    try {
+      const updated = await updateDashboardLeadStatus(lead.id, status);
+      setLeads((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+      showToast("Статус заявки обновлен");
+    } catch (err) {
+      showToast(normalizeError(err, "Не удалось обновить статус заявки"));
+    } finally {
+      setLeadUpdatingId("");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-paper pb-24 text-ink premium-grid md:pb-6">
       {toast && <Toast>{toast}</Toast>}
@@ -487,7 +505,21 @@ export function SellerDashboard() {
                         <tr key={lead.id} className="border-t border-line bg-white">
                           <td className="px-3 py-2 font-semibold">{lead.customer_name}</td>
                           <td className="px-3 py-2 text-xs text-neutral-500">{lead.phone}</td>
-                          <td className="px-3 py-2"><Badge tone={leadBadgeTone(lead.status)}>{leadStatusLabel(lead.status)}</Badge></td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <Badge tone={leadBadgeTone(lead.status)}>{leadStatusLabel(lead.status)}</Badge>
+                              <select
+                                value={lead.status}
+                                onChange={(event) => changeLeadStatus(lead, event.target.value as "new" | "contacted" | "closed")}
+                                disabled={leadUpdatingId === lead.id}
+                                className="h-8 rounded-md border border-line bg-white px-2 text-xs font-semibold text-neutral-700 disabled:opacity-60"
+                              >
+                                <option value="new">Новая</option>
+                                <option value="contacted">В работе</option>
+                                <option value="closed">Закрыта</option>
+                              </select>
+                            </div>
+                          </td>
                           <td className="px-3 py-2 text-right font-semibold">{money(290000)}</td>
                         </tr>
                       ))}
