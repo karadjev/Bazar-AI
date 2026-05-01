@@ -79,3 +79,63 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, product)
 }
+
+func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := validator.UUID(id, "id"); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	current, err := h.repo.ProductByID(r.Context(), id)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		return
+	}
+	var req platform.Product
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid product payload")
+		return
+	}
+	req.ID = id
+	req.StoreID = current.StoreID
+	req.Title = validator.Text(req.Title, 120)
+	req.Description = validator.Text(req.Description, 4000)
+	req.ShortDescription = validator.Text(req.ShortDescription, 280)
+	req.Image = validator.Text(req.Image, 500)
+	if err := validator.Length(req.Title, "title", 2, 120); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	if req.Price <= 0 {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "price must be positive")
+		return
+	}
+	if req.Status == "" {
+		req.Status = current.Status
+	}
+	if err := validator.Enum(req.Status, "status", "draft", "active", "archived"); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	updated, err := h.repo.UpdateProduct(r.Context(), req)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not update product")
+		return
+	}
+	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: auth.UserFromRequest(r).ID, Action: "product.updated", EntityType: "product", EntityID: updated.ID})
+	httpx.JSON(w, http.StatusOK, updated)
+}
+
+func (h Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := validator.UUID(id, "id"); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	if err := h.repo.DeleteProduct(r.Context(), id); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not delete product")
+		return
+	}
+	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: auth.UserFromRequest(r).ID, Action: "product.deleted", EntityType: "product", EntityID: id})
+	httpx.JSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+}

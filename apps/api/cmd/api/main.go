@@ -82,6 +82,8 @@ func main() {
 	mux.Handle("POST /api/v1/stores/{storeID}/products", owner(http.HandlerFunc(productHandler.Create)))
 	mux.Handle("GET /api/v1/stores/{storeID}/products", owner(http.HandlerFunc(productHandler.ListByStore)))
 	mux.Handle("GET /api/v1/products/{id}", owner(http.HandlerFunc(productHandler.Get)))
+	mux.Handle("PATCH /api/v1/products/{id}", owner(http.HandlerFunc(productHandler.Update)))
+	mux.Handle("DELETE /api/v1/products/{id}", owner(http.HandlerFunc(productHandler.Delete)))
 	mux.Handle("POST /api/v1/products/{id}/images", owner(http.HandlerFunc(storageHandler.UploadProductImage)))
 	mux.Handle("POST /api/v1/uploads/images", owner(http.HandlerFunc(storageHandler.UploadProductImage)))
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(cfg.UploadDir))))
@@ -105,6 +107,7 @@ func main() {
 	mux.HandleFunc("POST /api/onboarding/create-store", sprintHandler.CreateStore)
 	mux.HandleFunc("GET /api/dashboard/stores", sprintHandler.DashboardStores)
 	mux.HandleFunc("GET /api/dashboard/leads", sprintHandler.DashboardLeads)
+	mux.HandleFunc("GET /api/dashboard/analytics", sprintHandler.DashboardAnalytics)
 	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
 	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)
 

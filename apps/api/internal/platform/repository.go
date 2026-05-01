@@ -253,6 +253,60 @@ func (r *Repository) ProductByID(ctx context.Context, id string) (Product, error
 	return product, nil
 }
 
+func (r *Repository) UpdateProduct(ctx context.Context, product Product) (Product, error) {
+	attrs, _ := json.Marshal(product.Attributes)
+	row := r.db.QueryRow(ctx, `
+		UPDATE products
+		SET
+			title = $2,
+			slug = $3,
+			description = $4,
+			short_description = $5,
+			price = $6,
+			old_price = nullif($7, 0),
+			currency = $8,
+			stock_quantity = $9,
+			sku = $10,
+			status = $11,
+			attributes = $12::jsonb,
+			seo_title = $13,
+			seo_description = $14,
+			image = nullif($15, ''),
+			featured = $16,
+			updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL
+		RETURNING id::text, store_id::text, COALESCE(category_id::text, ''), title, slug, COALESCE(description, ''), COALESCE(short_description, ''), price, COALESCE(old_price, 0), currency, COALESCE(image, ''), featured, stock_quantity, COALESCE(sku, ''), status, attributes, COALESCE(seo_title, ''), COALESCE(seo_description, ''), created_at
+	`,
+		product.ID,
+		product.Title,
+		Slugify(product.Title),
+		product.Description,
+		product.ShortDescription,
+		product.Price,
+		product.OldPrice,
+		fallback(product.Currency, "RUB"),
+		product.StockQuantity,
+		product.SKU,
+		fallback(product.Status, "active"),
+		string(attrs),
+		product.SEOTitle,
+		product.SEODescription,
+		product.Image,
+		product.Featured,
+	)
+	updated, err := scanProduct(row)
+	if err != nil {
+		return Product{}, err
+	}
+	updated.Images, _ = r.productImages(ctx, updated.ID)
+	return updated, nil
+}
+
+func (r *Repository) DeleteProduct(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx, `UPDATE products SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL`, id)
+	return err
+}
+
 func (r *Repository) CreateOrder(ctx context.Context, order Order) (Order, error) {
 	if len(order.Items) == 0 {
 		return Order{}, errors.New("order requires at least one item")

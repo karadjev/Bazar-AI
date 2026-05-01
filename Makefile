@@ -31,7 +31,7 @@ build:
 	$(DEV_COMPOSE) build
 
 migrate:
-	$(DEV_COMPOSE) exec -T postgres psql -U bazar -d bazar_ai -f /docker-entrypoint-initdb.d/001_init.sql
+	$(DEV_COMPOSE) exec -T postgres sh -lc "for f in /docker-entrypoint-initdb.d/*.sql; do psql -U bazar -d bazar_ai -f $$f; done"
 
 seed:
 	$(DEV_COMPOSE) exec -T postgres psql -U bazar -d bazar_ai < apps/api/seeds/001_demo.sql

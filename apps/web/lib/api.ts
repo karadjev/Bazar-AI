@@ -154,6 +154,12 @@ export async function dashboardLeads() {
   return api<{ data: Lead[] }>(`/api/dashboard/leads${guest}`);
 }
 
+export async function dashboardAnalytics() {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ data: { stores: number; leads: number; orders: number; gmv: number } }>(`/api/dashboard/analytics${guest}`);
+}
+
 export async function publicStore(slug: string) {
   return api<{ store: Store; products: Product[] }>(`/api/store/${slug}`);
 }

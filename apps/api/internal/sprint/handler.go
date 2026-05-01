@@ -108,6 +108,43 @@ func (h Handler) DashboardLeads(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]any{"data": leads, "meta": map[string]int{"total": len(leads)}})
 }
 
+func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
+	ownerID := resolveOwnerID(r)
+	if ownerID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusUnauthorized, "unauthorized", "missing owner context")
+		return
+	}
+	stores, _, err := h.repo.StoresByOwner(r.Context(), ownerID, 100, 0)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not load stores")
+		return
+	}
+	var leadsTotal int
+	var ordersTotal int
+	var gmvTotal int64
+	for _, store := range stores {
+		storeLeads, _, leadErr := h.repo.LeadsByStore(r.Context(), store.ID, 500, 0)
+		if leadErr == nil {
+			leadsTotal += len(storeLeads)
+		}
+		storeOrders, _, orderErr := h.repo.OrdersByStore(r.Context(), store.ID, 500, 0)
+		if orderErr == nil {
+			ordersTotal += len(storeOrders)
+			for _, order := range storeOrders {
+				gmvTotal += order.TotalAmount
+			}
+		}
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{
+		"data": map[string]any{
+			"stores": len(stores),
+			"leads":  leadsTotal,
+			"orders": ordersTotal,
+			"gmv":    gmvTotal,
+		},
+	})
+}
+
 func (h Handler) StoreBySlug(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
