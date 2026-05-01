@@ -9,7 +9,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/bazar-a
 
 FROM alpine:3.22 AS runtime
 
-RUN apk add --no-cache ca-certificates tzdata && addgroup -S bazar && adduser -S -G bazar bazar
+RUN apk add --no-cache ca-certificates tzdata curl && addgroup -S bazar && adduser -S -G bazar bazar
 WORKDIR /app
 COPY --from=build /out/bazar-api /app/bazar-api
 RUN mkdir -p /app/uploads && chown -R bazar:bazar /app

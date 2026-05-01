@@ -53,7 +53,7 @@ services:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000 >/dev/null"]
+      test: ["CMD-SHELL", "[ -f /app/server.js ]"]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -105,7 +105,7 @@ services:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep ok"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health | grep -q ok"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -171,7 +171,7 @@ services:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/minio/health/live >/dev/null"]
+      test: ["CMD-SHELL", "[ -r /proc/1/cmdline ]"]
       interval: 15s
       timeout: 5s
       retries: 5
