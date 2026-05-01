@@ -14,12 +14,13 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ./nginx/nginx.bootstrap.conf:/etc/nginx/templates/nginx.bootstrap.conf.template:ro
       - certbot_www:/var/www/certbot
       - letsencrypt:/etc/letsencrypt
       - nginx_logs:/var/log/nginx
     environment:
       APP_DOMAIN: ${APP_DOMAIN}
-    command: /bin/sh -c "envsubst '$$APP_DOMAIN' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    command: /bin/sh -c "if [ -f /etc/letsencrypt/live/$$APP_DOMAIN/fullchain.pem ] && [ -f /etc/letsencrypt/live/$$APP_DOMAIN/privkey.pem ]; then envsubst '$$APP_DOMAIN' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf; else envsubst '$$APP_DOMAIN' < /etc/nginx/templates/nginx.bootstrap.conf.template > /etc/nginx/nginx.conf; fi && nginx -g 'daemon off;'"
     networks:
       - public
       - internal
@@ -35,6 +36,8 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    mem_limit: 256m
+    cpus: "0.50"
 
   frontend:
     build:
@@ -58,6 +61,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    mem_limit: 1024m
+    cpus: "1.00"
 
   api:
     build:
@@ -108,6 +113,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    mem_limit: 1024m
+    cpus: "1.00"
 
   postgres:
     image: postgres:16.6-alpine
@@ -129,6 +136,8 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    mem_limit: 1536m
+    cpus: "1.00"
 
   redis:
     image: redis:7.4.1-alpine
@@ -146,6 +155,8 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    mem_limit: 512m
+    cpus: "0.50"
 
   minio:
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
@@ -166,6 +177,8 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    mem_limit: 1024m
+    cpus: "1.00"
 
   rabbitmq:
     image: rabbitmq:3.13.7-management-alpine
@@ -182,6 +195,28 @@ services:
       retries: 5
     security_opt:
       - no-new-privileges:true
+    mem_limit: 768m
+    cpus: "0.75"
+
+  migrate:
+    image: postgres:16.6-alpine
+    profiles: ["ops"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    volumes:
+      - ../apps/api/migrations:/migrations:ro
+    command: >
+      sh -ec '
+      for file in /migrations/*.sql; do
+        echo "Applying migration: $${file}";
+        psql "$${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "$${file}";
+      done
+      '
+    networks:
+      - internal
 
   certbot:
     image: certbot/certbot:v2.11.0

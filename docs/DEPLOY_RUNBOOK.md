@@ -53,6 +53,7 @@ Pull/build and restart:
 ```bash
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml pull
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml build --pull frontend api
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml --profile ops run --rm migrate
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml up -d
 ```
 
@@ -110,4 +111,8 @@ Important: do not delete named volumes (`postgres_data`, `redis_data`, `minio_da
 
 ## 7) Safe migration note
 
-Current project mounts SQL files via `docker-entrypoint-initdb.d`; these run only on first DB initialization. For schema changes on existing DB volumes, run explicit migration steps before app rollout.
+Current project still mounts SQL files via `docker-entrypoint-initdb.d`; those run only on first DB initialization. For existing DB volumes, always execute the explicit migration step:
+
+```bash
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml --profile ops run --rm migrate
+```
