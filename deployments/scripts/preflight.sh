@@ -54,7 +54,11 @@ if [[ "$MODE" == "prod" ]]; then
   done
 fi
 
-if [[ "${JWT_SECRET:-}" == "change-me" || "${JWT_SECRET:-}" == *"placeholder"* || "${#JWT_SECRET:-0}" -lt 32 ]]; then
+jwt_len=0
+if [[ -n "${JWT_SECRET:-}" ]]; then
+  jwt_len=${#JWT_SECRET}
+fi
+if [[ "${JWT_SECRET:-}" == "change-me" || "${JWT_SECRET:-}" == *"placeholder"* || "$jwt_len" -lt 32 ]]; then
   echo "ERROR: JWT_SECRET must be non-placeholder and >= 32 chars"
   fail=1
 fi
