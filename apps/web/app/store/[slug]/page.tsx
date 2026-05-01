@@ -3,10 +3,23 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, Copy, Download, MapPin, MessageCircle, Minus, Phone, Plus, Send, ShoppingCart, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Download, Gem, MapPin, MessageCircle, Minus, Phone, Plus, Send, ShieldCheck, ShoppingCart, Sparkles, Star, Truck } from "lucide-react";
 import { api, demoProducts, demoStore, money, Product, Store } from "@/lib/api";
 import { Badge, Button, Card, EmptyState, Toast } from "@/components/ui-kit";
 import { themeBySlug } from "@/lib/themes";
+
+const trustBadges = [
+  { label: "Проверенный продавец", icon: ShieldCheck },
+  { label: "Связь в Telegram/WhatsApp", icon: MessageCircle },
+  { label: "Доставка по региону", icon: Truck },
+  { label: "Премиальная упаковка", icon: Gem }
+];
+
+const reviews = [
+  { name: "Амина", text: "Оформила заказ с телефона, продавец ответил в Telegram через пару минут." },
+  { name: "Мадина", text: "Витрина выглядит дорого, удобно смотреть товары и сразу писать продавцу." },
+  { name: "Ислам", text: "Быстрый checkout без регистрации. Для локального магазина это самое важное." }
+];
 
 export default function PublicStorePage() {
   const params = useParams<{ slug: string }>();
@@ -121,6 +134,17 @@ export default function PublicStorePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-7xl px-4 pb-8">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {trustBadges.map((item) => (
+            <div key={item.label} className="rounded-lg border p-4" style={{ background: theme.surface, borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(20,20,20,0.1)" }}>
+              <item.icon size={20} style={{ color: theme.accent }} />
+              <p className="mt-3 text-sm font-semibold">{item.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section id="catalog" className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -156,6 +180,27 @@ export default function PublicStorePage() {
               </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-8">
+        <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <Badge tone={isDark ? "gold" : "blue"}>Отзывы</Badge>
+            <h2 className="mt-3 text-3xl font-semibold">Покупатели доверяют магазину с первого экрана</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 opacity-70">Короткие отзывы, контакты и понятные условия помогают не терять клиента на мобильном checkout.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {reviews.map((review) => (
+              <div key={review.name} className="rounded-lg border p-4" style={{ background: theme.surface, borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(20,20,20,0.1)" }}>
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, index) => <Star key={index} size={14} fill={theme.accent} style={{ color: theme.accent }} />)}
+                </div>
+                <p className="mt-4 text-sm leading-6 opacity-75">{review.text}</p>
+                <p className="mt-4 text-sm font-semibold">{review.name}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

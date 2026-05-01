@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BadgeCheck, Check, Download, MapPin, MessageCircle, Plus, QrCode, Send, Share2, Sparkles, Store as StoreIcon, Wand2 } from "lucide-react";
 import { api, registerDemo, Store } from "@/lib/api";
-import { Badge, Button, Card, Field } from "@/components/ui-kit";
+import { Badge, Button, Card, Field, Stepper } from "@/components/ui-kit";
 import { storefrontThemes, themeByNiche } from "@/lib/themes";
 
 const niches = ["Женская одежда", "Косметика", "Халяль-продукты", "Парфюм", "Торты", "Исламские товары", "Техника", "Локальный бренд"];
@@ -31,7 +31,7 @@ export function OnboardingFlow() {
   const selectedTheme = useMemo(() => storefrontThemes.find((theme) => theme.code === form.style) || themeByNiche(form.niche), [form.style, form.niche]);
   const storePath = store ? `/store/${store.slug}` : `/store/${form.name.toLowerCase().replaceAll(" ", "-")}`;
   const shareText = encodeURIComponent(`Мой магазин ${form.name}: ${typeof window !== "undefined" ? location.origin : ""}${storePath}`);
-  const steps = ["Бизнес", "Регион", "Стиль", "Заказы", "AI", "Готово"];
+  const steps = ["Ниша", "Город", "Контакты", "Стиль", "Генерация", "Готово"];
 
   useEffect(() => {
     if (!loading) return;
@@ -89,18 +89,22 @@ export function OnboardingFlow() {
             <div className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white"><StoreIcon size={20} /></div>
             <div>
               <p className="text-sm font-semibold">Bazar AI</p>
-              <p className="text-xs text-neutral-500">AI commerce для локального бизнеса</p>
+              <p className="text-xs text-neutral-500">Wizard запуска магазина</p>
             </div>
           </div>
-          <Link href="/dashboard" className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold transition hover:bg-neutral-50">Dashboard</Link>
+          <div className="flex items-center gap-2">
+            <Link href="/" className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold transition hover:bg-neutral-50">Главная</Link>
+            <Link href="/dashboard" className="hidden rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold transition hover:bg-neutral-50 sm:inline-flex">Dashboard</Link>
+          </div>
         </header>
 
         <div className="grid gap-4 py-5 lg:grid-cols-[320px_1fr]">
           <Card className="h-fit p-4">
             <div className="mb-5">
-              <Badge tone="gold">Alpha onboarding</Badge>
-              <h1 className="mt-3 text-2xl font-semibold leading-tight">Магазин, который выглядит готовым к продажам.</h1>
+              <Badge tone="gold">Premium onboarding</Badge>
+              <h1 className="mt-3 text-2xl font-semibold leading-tight">Собираем магазин, который можно отправить клиенту.</h1>
             </div>
+            <Stepper steps={steps} active={step} />
             <div className="space-y-2">
               {steps.map((item, index) => (
                 <button key={item} onClick={() => index < 4 && setStep(index)} className={`flex w-full items-center gap-3 rounded-md p-3 text-left transition ${index === step ? "bg-ink text-white" : index < step ? "bg-mint/10 text-ink" : "text-neutral-500 hover:bg-neutral-100"}`}>
@@ -141,7 +145,16 @@ export function OnboardingFlow() {
                   </Panel>
                 )}
                 {step === 2 && (
-                  <Panel eyebrow="Шаг 3" title="Какой стиль магазина хотите?" hint="Темы отличаются композицией, настроением, карточками и визуальной логикой.">
+                  <Panel eyebrow="Шаг 3" title="Куда отправлять заказы?" hint="Telegram и WhatsApp становятся главными каналами продаж.">
+                    <Field label="Телефон" value={form.phone} onChange={(phone) => setForm({ ...form, phone })} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="WhatsApp" value={form.whatsapp} onChange={(whatsapp) => setForm({ ...form, whatsapp })} />
+                      <Field label="Telegram" value={form.telegram} onChange={(telegram) => setForm({ ...form, telegram })} />
+                    </div>
+                  </Panel>
+                )}
+                {step === 3 && (
+                  <Panel eyebrow="Шаг 4" title="Какой стиль магазина хотите?" hint="Темы отличаются композицией, настроением, карточками и визуальной логикой.">
                     <div className="grid gap-3 md:grid-cols-2">
                       {storefrontThemes.map((theme) => (
                         <button key={theme.code} onClick={() => setForm({ ...form, style: theme.code })} className={`overflow-hidden rounded-lg border text-left transition hover:-translate-y-0.5 hover:shadow-soft ${form.style === theme.code ? "border-ink" : "border-line"}`}>
@@ -152,15 +165,6 @@ export function OnboardingFlow() {
                           </div>
                         </button>
                       ))}
-                    </div>
-                  </Panel>
-                )}
-                {step === 3 && (
-                  <Panel eyebrow="Шаг 4" title="Куда отправлять заказы?" hint="Telegram и WhatsApp становятся главными каналами продаж.">
-                    <Field label="Телефон" value={form.phone} onChange={(phone) => setForm({ ...form, phone })} />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="WhatsApp" value={form.whatsapp} onChange={(whatsapp) => setForm({ ...form, whatsapp })} />
-                      <Field label="Telegram" value={form.telegram} onChange={(telegram) => setForm({ ...form, telegram })} />
                     </div>
                   </Panel>
                 )}
