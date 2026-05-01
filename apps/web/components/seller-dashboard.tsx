@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, clearSession, dashboardLeads, dashboardStores, demoProducts, demoStore, getToken, Lead, money, Product, Store } from "@/lib/api";
+import { api, clearSession, dashboardAnalytics, dashboardLeads, dashboardStores, demoProducts, demoStore, getToken, Lead, money, Product, Store } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
 import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
@@ -43,6 +43,7 @@ export function SellerDashboard() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
+  const [analytics, setAnalytics] = useState({ stores: 0, leads: 0, orders: 0, gmv: 0 });
 
   useEffect(() => {
     async function load() {
@@ -64,11 +65,14 @@ export function SellerDashboard() {
 
         const loadedLeads = await dashboardLeads().catch(() => ({ data: [] as Lead[] }));
         setLeads(loadedLeads.data || []);
+        const loadedAnalytics = await dashboardAnalytics().catch(() => ({ data: { stores: 0, leads: 0, orders: 0, gmv: 0 } }));
+        setAnalytics(loadedAnalytics.data || { stores: 0, leads: 0, orders: 0, gmv: 0 });
 
         const status = guestSession ? { status: "not_connected" } : await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`).catch(() => ({ status: "not_connected" }));
         setTelegram(status.status);
       } catch {
         setLeads([{ id: "LEAD-DEMO", store_id: "demo_store", customer_name: "Амина", phone: "+7 900 111-22-33", status: "new", message: "Хочу оформить заказ" }]);
+        setAnalytics({ stores: 1, leads: 1, orders: 0, gmv: 0 });
         setError("Показываем демо-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
       } finally {
         setLoading(false);
@@ -77,10 +81,10 @@ export function SellerDashboard() {
     load();
   }, []);
 
-  const todaySales = useMemo(() => leads.length * 290000, [leads]);
+  const todaySales = useMemo(() => analytics.gmv || leads.length * 290000, [analytics.gmv, leads.length]);
   const storeLink = `/store/${store.slug}`;
-  const newOrders = leads.filter((lead) => lead.status === "new").length || leads.length;
-  const views = Math.max(1248, products.length * 217 + leads.length * 83);
+  const newOrders = analytics.orders || leads.filter((lead) => lead.status === "new").length || leads.length;
+  const views = Math.max(1248, products.length * 217 + (analytics.leads || leads.length) * 83);
   const conversion = views > 0 ? ((newOrders / views) * 100).toFixed(1) : "0.0";
 
   async function createAIProduct() {
@@ -204,7 +208,7 @@ export function SellerDashboard() {
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32" />) : (
               <>
-                <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="новые заявки" />
+                <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="из аналитики" />
                 <MetricCard icon={<TrendingUp size={18} />} label="Выручка" value={money(todaySales)} hint="+18%" />
                 <MetricCard icon={<Boxes size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
                 <MetricCard icon={<Eye size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
@@ -223,7 +227,7 @@ export function SellerDashboard() {
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               {[
                 ["Просмотры", views, "bg-slate-300"],
-                ["Заявки", newOrders * 4, "bg-violet-300"],
+                ["Заявки", analytics.leads || newOrders * 4, "bg-violet-300"],
                 ["Заказы", newOrders, "bg-emerald-400"]
               ].map(([label, value, color]) => (
                 <div key={label as string} className="rounded-xl border border-line bg-white p-3">

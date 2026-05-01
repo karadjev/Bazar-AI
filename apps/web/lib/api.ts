@@ -111,8 +111,16 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ error: "request failed" }));
-    throw new Error(body.error || "request failed");
+    const body = await response.json().catch(() => null) as
+      | { error?: string | { message?: string; code?: string } }
+      | null;
+    if (typeof body?.error === "string") {
+      throw new Error(body.error);
+    }
+    if (body?.error && typeof body.error === "object" && body.error.message) {
+      throw new Error(body.error.message);
+    }
+    throw new Error("request failed");
   }
   return response.json();
 }
