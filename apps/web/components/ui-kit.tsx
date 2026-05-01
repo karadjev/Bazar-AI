@@ -279,19 +279,19 @@ export function Header() {
           <span className="text-sm font-semibold">BuildYourStore.ai</span>
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium text-neutral-600 md:flex">
-          <Link href="/features" className="hover:text-ink">Features</Link>
-          <Link href="/pricing" className="hover:text-ink">Pricing</Link>
-          <Link href="/templates" className="hover:text-ink">Templates</Link>
-          <Link href="/dashboard" className="hover:text-ink">Dashboard</Link>
+          <Link href="/features" className="hover:text-ink">Возможности</Link>
+          <Link href="/pricing" className="hover:text-ink">Тарифы</Link>
+          <Link href="/templates" className="hover:text-ink">Шаблоны</Link>
+          <Link href="/dashboard" className="hover:text-ink">Кабинет</Link>
         </nav>
         <Link href="/onboarding" className="inline-flex h-10 items-center rounded-2xl bg-ink px-4 text-sm font-semibold text-white">Создать магазин</Link>
       </div>
       <div className="shell mb-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
         {[
-          ["/features", "Features"],
-          ["/pricing", "Pricing"],
-          ["/templates", "Templates"],
-          ["/dashboard", "Dashboard"]
+          ["/features", "Возможности"],
+          ["/pricing", "Тарифы"],
+          ["/templates", "Шаблоны"],
+          ["/dashboard", "Кабинет"]
         ].map(([href, label]) => (
           <Link key={href} href={href} className="inline-flex h-8 shrink-0 items-center rounded-xl border border-line bg-white px-3 text-xs font-semibold text-neutral-600">
             {label}
@@ -308,10 +308,10 @@ export function Footer() {
       <div className="shell flex flex-col gap-3 py-8 text-sm text-neutral-600 md:flex-row md:items-center md:justify-between">
         <p>BuildYourStore.ai</p>
         <div className="flex flex-wrap gap-4">
-          <Link href="/features" className="hover:text-ink">Features</Link>
-          <Link href="/pricing" className="hover:text-ink">Pricing</Link>
-          <Link href="/templates" className="hover:text-ink">Templates</Link>
-          <Link href="/store/oud-house" className="hover:text-ink">Demo Store</Link>
+          <Link href="/features" className="hover:text-ink">Возможности</Link>
+          <Link href="/pricing" className="hover:text-ink">Тарифы</Link>
+          <Link href="/templates" className="hover:text-ink">Шаблоны</Link>
+          <Link href="/store/oud-house" className="hover:text-ink">Демо-магазин</Link>
         </div>
       </div>
     </footer>
@@ -330,7 +330,7 @@ export function FeatureCard({ title, text }: { title: string; text: string }) {
 export function StepCard({ index, title, text }: { index: number; title: string; text: string }) {
   return (
     <Card className="rounded-2xl p-5">
-      <p className="text-xs font-semibold text-neutral-500">STEP {index}</p>
+      <p className="text-xs font-semibold text-neutral-500">ШАГ {index}</p>
       <p className="mt-3 text-lg font-semibold">{title}</p>
       <p className="mt-2 text-sm leading-6 text-neutral-600">{text}</p>
     </Card>

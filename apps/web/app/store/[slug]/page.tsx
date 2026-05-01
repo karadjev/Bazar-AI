@@ -131,7 +131,7 @@ export default function PublicStorePage() {
       <div className="sticky top-[69px] z-20 border-b backdrop-blur-xl" style={{ background: isDark ? "rgba(20,20,20,0.78)" : "rgba(255,255,255,0.88)", borderColor: borderColor(isDark) }}>
         <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2 text-sm font-semibold md:px-6">
           {[
-            ["Hero", "#top"],
+            ["Главная", "#top"],
             ["Каталог", "#catalog"],
             ["Отзывы", "#reviews"],
             ["Заказ", "#checkout"]
@@ -186,7 +186,7 @@ export default function PublicStorePage() {
             </div>
             <div className="flex flex-col justify-between">
               <div>
-                <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, 0.2) }}>Featured product</span>
+                <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, 0.2) }}>Рекомендуемый товар</span>
                 <h2 className="mt-4 text-3xl font-semibold leading-tight md:text-4xl">{featuredProduct.title}</h2>
                 <p className="mt-3 text-sm leading-6 opacity-75">{featuredProduct.short_description || featuredProduct.description}</p>
               </div>
@@ -400,8 +400,8 @@ function HeroOrderPreview({ theme, experience, cartCount, total, onScrollCheckou
   return (
     <div className="mb-4 hidden rounded-lg border border-white/18 bg-white/12 p-4 text-white shadow-premium backdrop-blur-xl lg:block">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Telegram order</p>
-        <span className="rounded-md px-2 py-1 text-xs font-semibold text-ink" style={{ background: theme.accent }}>live</span>
+        <p className="text-sm font-semibold">Заказ в Telegram</p>
+        <span className="rounded-md px-2 py-1 text-xs font-semibold text-ink" style={{ background: theme.accent }}>в эфире</span>
       </div>
       <div className="mt-4 rounded-lg bg-white p-4 text-ink">
         <div className="flex items-center gap-3">
@@ -473,7 +473,7 @@ function LookbookSection({ theme, experience, products }: { theme: StoreTheme; e
       <div className="grid gap-4 overflow-hidden rounded-lg border" style={{ background: theme.surface, borderColor: borderColor(isDark) }}>
         <div className="grid gap-0 lg:grid-cols-[0.92fr_1.08fr]">
           <div className="p-5 md:p-8">
-            <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, isDark ? 0.24 : 0.14) }}>Store mood</span>
+            <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, isDark ? 0.24 : 0.14) }}>Атмосфера витрины</span>
             <h2 className="mt-4 text-3xl font-semibold leading-tight text-balance md:text-5xl">{experience.lookbookTitle}</h2>
             <p className="mt-4 text-sm leading-6 opacity-70">{theme.hero}</p>
             <div className="mt-6 grid gap-2 sm:grid-cols-3">
@@ -517,14 +517,14 @@ function MobileStickyBar({ total, totalCount, theme, whatsapp }: { total: number
 function getExperience(theme: StoreTheme): Experience {
   if (theme.code === "perfume-luxury") {
     return {
-      eyebrow: "Luxury Perfume",
+      eyebrow: "Премиальный парфюм",
       headline: "Signature scents и подарочные наборы",
       subhead: "Темная premium-витрина с крупными фото, доверием и быстрым заказом аромата в Telegram.",
-      categories: ["Oud collection", "Подарки", "Подбор аромата", "Доставка сегодня"],
+      categories: ["Коллекция Oud", "Подарки", "Подбор аромата", "Доставка сегодня"],
       trust: [
         { label: "Подарочная упаковка", icon: Gift },
         { label: "Подбор аромата", icon: Gem },
-        { label: "Private order", icon: MessageCircle },
+        { label: "Персональный заказ", icon: MessageCircle },
         { label: "Доставка по региону", icon: Truck }
       ],
       reviews: [
@@ -533,7 +533,7 @@ function getExperience(theme: StoreTheme): Experience {
         { name: "Ислам", text: "Оформил заказ с телефона без регистрации. Продавец ответил через пару минут." }
       ],
       orderNote: "аромат + упаковка",
-      productMood: "Luxury catalog",
+      productMood: "Премиальный каталог",
       lookbookTitle: "Подача как в boutique-парфюмерии"
     };
   }
@@ -556,7 +556,7 @@ function getExperience(theme: StoreTheme): Experience {
         { name: "Марьяна", text: "Категории на телефоне работают как нормальный продуктовый магазин." }
       ],
       orderNote: "доставка сегодня",
-      productMood: "Market shelf",
+      productMood: "Полка маркет-подбора",
       lookbookTitle: "Понятный grocery layout без лишнего шума"
     };
   }
@@ -573,8 +573,8 @@ function getExperience(theme: StoreTheme): Experience {
       { name: "Лейла", text: "Карточки крупные, фото видно хорошо, заказ занял меньше минуты." }
     ],
     orderNote: "размер + доставка",
-    productMood: "Editorial shop",
-    lookbookTitle: "Lookbook, который продает с первого экрана"
+    productMood: "Редакционная витрина",
+    lookbookTitle: "Лукбук, который продает с первого экрана"
   };
 }
 

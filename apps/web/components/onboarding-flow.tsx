@@ -139,13 +139,13 @@ export function OnboardingFlow() {
           <Link href="/" className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white shadow-float"><StoreIcon size={20} /></span>
             <span>
-              <span className="block text-sm font-semibold">Bazar AI</span>
+              <span className="block text-sm font-semibold">BuildYourStore.ai</span>
               <span className="block text-xs font-medium text-neutral-500">Запуск магазина</span>
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/dashboard" className="hidden h-10 items-center rounded-md border border-line bg-white px-3 text-sm font-semibold transition hover:bg-neutral-50 sm:inline-flex">Dashboard</Link>
-            <a href={storePath} className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white transition hover:bg-neutral-800">Preview <ArrowRight size={16} /></a>
+            <Link href="/dashboard" className="hidden h-10 items-center rounded-md border border-line bg-white px-3 text-sm font-semibold transition hover:bg-neutral-50 sm:inline-flex">Кабинет</Link>
+            <a href={storePath} className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white transition hover:bg-neutral-800">Предпросмотр <ArrowRight size={16} /></a>
           </div>
         </div>
       </header>
@@ -153,12 +153,12 @@ export function OnboardingFlow() {
       <section className="shell py-5 md:py-8">
         <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
           <div>
-            <Badge tone="gold">Premium wizard</Badge>
+            <Badge tone="gold">Премиум-мастер</Badge>
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-balance md:text-6xl">
               Соберите витрину, которую не стыдно показать первому клиенту
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-600 md:text-base">
-              Мы ведем вас пошагово: от ниши до готовой ссылки. Каждый шаг сразу отражается в live preview.
+              Мы ведем вас пошагово: от ниши до готовой ссылки. Каждый шаг сразу отражается в живом предпросмотре.
             </p>
           </div>
           <div className="rounded-lg border border-line bg-white p-4 shadow-soft">
@@ -231,7 +231,7 @@ export function OnboardingFlow() {
                   <Field label="Telegram" value={form.telegram} onChange={(telegram) => setForm({ ...form, telegram })} />
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {["Telegram order", "WhatsApp checkout", "Звонок клиенту"].map((item, index) => (
+                  {["Заказ в Telegram", "Оформление в WhatsApp", "Звонок клиенту"].map((item, index) => (
                     <div key={item} className="rounded-lg border border-line bg-paper p-4">
                       <span className="grid h-9 w-9 place-items-center rounded-md bg-white text-sea shadow-sm">{index === 0 ? <Send size={17} /> : index === 1 ? <MessageCircle size={17} /> : <CheckCircle2 size={17} />}</span>
                       <p className="mt-3 text-sm font-semibold">{item}</p>
@@ -256,7 +256,7 @@ export function OnboardingFlow() {
                         <span className="absolute bottom-3 left-3 rounded-md px-2 py-1 text-xs font-semibold text-white" style={{ background: theme.accent }}>{theme.title}</span>
                       </div>
                       <div className="p-4">
-                        <p className="text-sm font-semibold">{theme.mood} visual pack</p>
+                        <p className="text-sm font-semibold">{theme.mood} стиль</p>
                         <p className="mt-1 text-xs leading-5 text-neutral-500">{theme.tagline}</p>
                         <p className="mt-2 text-[11px] font-semibold text-neutral-400">{theme.structure.slice(0, 3).join(" · ")}</p>
                       </div>
@@ -316,7 +316,7 @@ export function OnboardingFlow() {
 
           <aside className="lg:sticky lg:top-24 lg:h-fit">
             <div className="mb-3 flex items-center justify-between rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-neutral-600">
-              <span>Live preview</span>
+              <span>Живой предпросмотр</span>
               <span>mobile-first</span>
             </div>
             <PhonePreview form={form} theme={selectedTheme} />
@@ -428,13 +428,13 @@ function SuccessScreen({
           </div>
         </div>
         <div className="rounded-lg border border-line bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><QrCode size={17} />QR магазина</div>
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><QrCode size={17} />QR-код магазина</div>
           <QRCodeMock accent={themeAccent} />
         </div>
       </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link href="/dashboard" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-ink px-5 text-sm font-semibold text-white transition hover:bg-neutral-800">
-          <PackagePlus size={18} />Добавить первый товар
+          <PackagePlus size={18} />Перейти в dashboard
         </Link>
         <Link href={storePath || `/store/${store.slug}`} className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-line bg-white px-5 text-sm font-semibold transition hover:bg-neutral-50">
           <ArrowRight size={18} />Посмотреть магазин

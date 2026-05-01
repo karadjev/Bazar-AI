@@ -7,15 +7,15 @@ import { Badge, Button, Card, Field, Tabs, Toast } from "@/components/ui-kit";
 import { storefrontThemes } from "@/lib/themes";
 import { AIActions } from "@/components/ai-actions";
 
-const blocks = ["hero", "товары", "категории", "отзывы", "акции", "доставка", "FAQ", "контакты", "Instagram/Telegram CTA"];
-const quickStyles = ["Premium", "Editorial", "Minimal", "Local", "Contrast"];
+const blocks = ["первый экран", "товары", "категории", "отзывы", "акции", "доставка", "вопросы", "контакты", "CTA для Instagram/Telegram"];
+const quickStyles = ["Премиум", "Редакционный", "Минимализм", "Локальный", "Контраст"];
 
 export default function StoreEditorPage() {
-  const [activeBlock, setActiveBlock] = useState("hero");
-  const [preview, setPreview] = useState("Desktop");
+  const [activeBlock, setActiveBlock] = useState("первый экран");
+  const [preview, setPreview] = useState("Компьютер");
   const [theme, setTheme] = useState(storefrontThemes[0]);
   const [toast, setToast] = useState("");
-  const [settings, setSettings] = useState({ title: "Kavkaz Style", button: "Заказать сегодня", color: theme.accent });
+  const [settings, setSettings] = useState({ title: "Кавказ Стиль", button: "Заказать сегодня", color: theme.accent });
   const [history, setHistory] = useState(["Первичная версия"]);
   const [future, setFuture] = useState<string[]>([]);
   const [autosaved, setAutosaved] = useState("только что");
@@ -56,19 +56,24 @@ export default function StoreEditorPage() {
     setToast("AI сделал магазин красивее");
   }
 
+  function showPlaceholder(value: string) {
+    setToast(value);
+    setTimeout(() => setToast(""), 2200);
+  }
+
   return (
     <main className="min-h-screen bg-paper text-ink premium-grid">
       {toast && <Toast>{toast}</Toast>}
       <header className="glass-panel sticky top-3 z-20 mx-auto mt-3 flex max-w-7xl items-center justify-between rounded-lg px-4 py-3 shadow-soft">
         <div>
-          <p className="text-xs font-semibold uppercase text-sea">Store editor</p>
+          <p className="text-xs font-semibold uppercase text-sea">Редактор витрины</p>
           <h1 className="text-lg font-semibold">Редактор магазина</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs font-semibold text-mint md:inline">{autosaved}</span>
-          <button onClick={undo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Undo"><Undo2 size={17} /></button>
-          <button onClick={redo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Redo"><Redo2 size={17} /></button>
-          <Tabs items={["Desktop", "Mobile"]} active={preview} onChange={setPreview} />
+          <button onClick={undo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Отменить"><Undo2 size={17} /></button>
+          <button onClick={redo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Вернуть"><Redo2 size={17} /></button>
+          <Tabs items={["Компьютер", "Телефон"]} active={preview} onChange={setPreview} />
           <Button onClick={save}>Сохранить</Button>
         </div>
       </header>
@@ -77,7 +82,7 @@ export default function StoreEditorPage() {
         <Card className="h-fit p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Блоки</h2>
-            <Badge tone="blue">drag</Badge>
+            <Badge tone="blue">порядок</Badge>
           </div>
           <div className="mt-4 space-y-2">
             {blocks.map((block) => (
@@ -100,14 +105,14 @@ export default function StoreEditorPage() {
             <div className="mb-3 flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <MonitorSmartphone size={18} className="text-sea" />
-                <p className="text-sm font-semibold">Preview</p>
+                <p className="text-sm font-semibold">Предпросмотр</p>
               </div>
               <div className="flex gap-2 text-xs text-neutral-500">
-                <span className="flex items-center gap-1"><Laptop size={14} />Desktop</span>
-                <span className="flex items-center gap-1"><Smartphone size={14} />Mobile</span>
+                <span className="flex items-center gap-1"><Laptop size={14} />Компьютер</span>
+                <span className="flex items-center gap-1"><Smartphone size={14} />Телефон</span>
               </div>
             </div>
-            <div className={`mx-auto overflow-hidden rounded-lg border border-line transition-all duration-300 ${preview === "Mobile" ? "max-w-[390px]" : "max-w-full"}`} style={{ background: theme.bg, color: theme.text }}>
+            <div className={`mx-auto overflow-hidden rounded-lg border border-line transition-all duration-300 ${preview === "Телефон" ? "max-w-[390px]" : "max-w-full"}`} style={{ background: theme.bg, color: theme.text }}>
               <div className="relative min-h-[520px]">
                 <div className="relative h-64 w-full">
                   <Image src={theme.image} alt="" fill className="object-cover" sizes="(max-width: 1280px) 100vw, 900px" />
@@ -161,8 +166,8 @@ export default function StoreEditorPage() {
               <p className="mb-2 text-xs font-semibold text-neutral-500">AI действия</p>
               <AIActions compact />
             </div>
-            <Button onClick={aiRedesign} variant="secondary" className="w-full"><Sparkles size={17} />Сделать магазин красивее с AI</Button>
-            <Button variant="dark" className="w-full"><MessageCircle size={17} />CTA Telegram</Button>
+            <Button onClick={aiRedesign} variant="secondary" className="w-full"><Sparkles size={17} />Улучшить магазин с AI</Button>
+            <Button variant="dark" className="w-full" onClick={() => showPlaceholder("Быстрое CTA для Telegram скоро будет доступно")}><MessageCircle size={17} />CTA для Telegram</Button>
           </div>
         </Card>
       </section>

@@ -67,7 +67,7 @@ export function SellerDashboard() {
         setTelegram(status.status);
       } catch {
         setLeads([{ id: "LEAD-DEMO", store_id: "demo_store", customer_name: "Амина", phone: "+7 900 111-22-33", status: "new", message: "Хочу оформить заказ" }]);
-        setError("Показываем demo-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
+        setError("Показываем демо-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
       } finally {
         setLoading(false);
       }
@@ -159,18 +159,18 @@ export function SellerDashboard() {
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-white"><ShoppingBag size={18} /></div>
             <div>
               <p className="text-xs font-semibold text-neutral-500">BuildYourStore.ai</p>
-              <p className="text-sm font-semibold">Seller panel</p>
+              <p className="text-sm font-semibold">Панель продавца</p>
             </div>
           </div>
           <div className="mt-5 grid gap-2">
-            {["Overview", "Stores", "Leads", "Templates", "Settings"].map((item, index) => (
+            {["Обзор", "Магазины", "Заявки", "Шаблоны", "Настройки"].map((item, index) => (
               <button key={item} onClick={() => showPlaceholder(item)} className={`h-10 rounded-xl px-3 text-left text-sm font-semibold ${index === 0 ? "bg-ink text-white" : "bg-paper text-neutral-600"}`}>
                 {item}
               </button>
             ))}
           </div>
           <button onClick={() => { clearSession(); location.href = "/"; }} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold">
-            <LogOut size={16} /> Logout
+            <LogOut size={16} /> Выйти
           </button>
         </aside>
 
@@ -213,8 +213,8 @@ export function SellerDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold">Store performance</h2>
-                <p className="text-xs text-neutral-500">Последние 7 дней по воронке storefront</p>
+                <h2 className="text-base font-semibold">Эффективность магазина</h2>
+                <p className="text-xs text-neutral-500">Последние 7 дней по воронке витрины</p>
               </div>
               <Badge tone="blue">{conversion}% CR</Badge>
             </div>
@@ -237,8 +237,8 @@ export function SellerDashboard() {
 
           <section className="grid gap-3 md:grid-cols-3">
             {[
-              ["Store health", "Хорошо", "Витрина опубликована и доступна"],
-              ["Checkout flow", leads.length > 0 ? "Активен" : "Ожидает", "Появится после первой заявки"],
+              ["Состояние магазина", "Хорошо", "Витрина опубликована и доступна"],
+              ["Оформление заказа", leads.length > 0 ? "Активно" : "Ожидает", "Появится после первой заявки"],
               ["Контент", products.length > 2 ? "Нормально" : "Нужно усилить", "Добавьте 6+ товаров и отзывы"]
             ].map(([title, status, text]) => (
               <Card key={title as string} className="p-4">
@@ -255,7 +255,7 @@ export function SellerDashboard() {
               <div className="p-5 md:p-7">
                 <Badge tone="dark">Что сделать дальше?</Badge>
                 <h2 className="text-balance mt-4 max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">Сейчас важнее всего наполнить витрину и отправить ссылку первым клиентам.</h2>
-                <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">Bazar AI превращает dashboard в план действий: товары, Telegram, шаринг и улучшение витрины.</p>
+                <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">BuildYourStore.ai превращает кабинет в план действий: товары, Telegram, шаринг и улучшение витрины.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {nextActions.map((action) => (
                     <button key={action.title} onClick={() => showPlaceholder(action.title)} className="rounded-lg border border-line bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-premium">
@@ -285,12 +285,20 @@ export function SellerDashboard() {
                 <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.06] p-4">
                   <p className="text-sm font-semibold">Быстрые действия</p>
                   <div className="mt-3 grid gap-2">
+                    <Link href="/store/oud-house" className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
+                      <ArrowUpRight size={16} />Открыть магазин
+                    </Link>
+                    <Link href="/onboarding" className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
+                      <Plus size={16} />Создать магазин
+                    </Link>
+                    <Action icon={<Copy size={16} />} label="Скопировать ссылку" onClick={shareStore} />
                     <Action icon={<Sparkles size={16} />} label="Улучшить витрину с AI" onClick={createAIProduct} />
                     <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
                       <ImagePlus size={16} />Добавить фото
                       <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0])} />
                     </label>
                     <Action icon={<MessageCircle size={16} />} label="Подключить Telegram" onClick={connectTelegram} />
+                    <Action icon={<Wand2 size={16} />} label="Экспорт в CRM" onClick={() => showPlaceholder("Экспорт в CRM")} />
                   </div>
                 </div>
               </div>
@@ -362,9 +370,9 @@ export function SellerDashboard() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">Товары</h2>
-                <p className="mt-1 text-sm text-neutral-500">Добавьте первый товар и начните принимать заказы</p>
+                <p className="mt-1 text-sm text-neutral-500">Добавьте первый товар и начните принимать заявки</p>
               </div>
-              <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI товар</Button>
+              <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI-товар</Button>
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               {products.length === 0 ? (

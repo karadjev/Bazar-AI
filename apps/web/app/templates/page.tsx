@@ -7,38 +7,38 @@ import { Footer, Header, Section } from "@/components/ui-kit";
 import { storefrontThemes } from "@/lib/themes";
 
 const templates = [
-  { name: "Luxury Perfume", niche: "Beauty", image: storefrontThemes[3].image, useCase: "Премиум подарки и private order" },
-  { name: "Fashion Boutique", niche: "Fashion", image: storefrontThemes[0].image, useCase: "Коллекции и сезонные дропы" },
-  { name: "Halal Grocery", niche: "Grocery", image: storefrontThemes[2].image, useCase: "Быстрый заказ продуктовых наборов" },
-  { name: "Bakery", niche: "Food", image: storefrontThemes[4].image, useCase: "Торты к событиям и предзаказы" },
-  { name: "Electronics", niche: "Tech", image: storefrontThemes[6].image, useCase: "Техника в наличии + гарантия" },
-  { name: "Beauty Studio", niche: "Beauty", image: storefrontThemes[9].image, useCase: "Запись на услуги и отзывы" }
+  { name: "Премиальный парфюм", niche: "Красота", image: storefrontThemes[3].image, useCase: "Премиум-подарки и персональный заказ" },
+  { name: "Модный бутик", niche: "Одежда", image: storefrontThemes[0].image, useCase: "Коллекции и сезонные дропы" },
+  { name: "Халяль-маркет", niche: "Продукты", image: storefrontThemes[2].image, useCase: "Быстрый заказ продуктовых наборов" },
+  { name: "Кондитерская", niche: "Еда", image: storefrontThemes[4].image, useCase: "Торты к событиям и предзаказы" },
+  { name: "Электроника", niche: "Техника", image: storefrontThemes[6].image, useCase: "Техника в наличии и гарантия" },
+  { name: "Студия красоты", niche: "Красота", image: storefrontThemes[9].image, useCase: "Запись на услуги и отзывы" }
 ];
 
 export default function TemplatesPage() {
-  const [activeNiche, setActiveNiche] = useState("All");
-  const niches = ["All", "Fashion", "Beauty", "Grocery", "Food", "Tech"];
+  const [activeNiche, setActiveNiche] = useState("Все");
+  const niches = ["Все", "Одежда", "Красота", "Продукты", "Еда", "Техника"];
   const filtered = useMemo(
-    () => templates.filter((template) => activeNiche === "All" || template.niche === activeNiche),
+    () => templates.filter((template) => activeNiche === "Все" || template.niche === activeNiche),
     [activeNiche]
   );
 
   return (
     <main className="min-h-screen bg-paper text-ink">
       <Header />
-      <Section eyebrow="Templates" title="Готовые storefront-шаблоны" text="Выберите нишу и откройте премиальный preview за секунды.">
+      <Section eyebrow="Шаблоны" title="Готовые шаблоны витрин" text="Выберите нишу и откройте премиальный preview за секунды.">
         <div className="mb-6 grid gap-3 rounded-2xl border border-line bg-white p-4 md:grid-cols-3">
           <div>
-            <p className="text-xs font-semibold text-neutral-500">Before</p>
-            <p className="mt-1 text-sm font-semibold">Обычный лендинг без mobile flow</p>
+            <p className="text-xs font-semibold text-neutral-500">До</p>
+            <p className="mt-1 text-sm font-semibold">Обычный лендинг без мобильного сценария</p>
           </div>
           <div>
-            <p className="text-xs font-semibold text-neutral-500">After</p>
+            <p className="text-xs font-semibold text-neutral-500">После</p>
             <p className="mt-1 text-sm font-semibold">Storefront + заявки + понятный CTA</p>
           </div>
           <div>
-            <p className="text-xs font-semibold text-neutral-500">Use cases</p>
-            <p className="mt-1 text-sm font-semibold">Fashion, beauty, grocery, food, tech</p>
+            <p className="text-xs font-semibold text-neutral-500">Сценарии</p>
+            <p className="mt-1 text-sm font-semibold">Одежда, красота, продукты, еда, техника</p>
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export default function TemplatesPage() {
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
             <p className="text-lg font-semibold">Шаблоны скоро появятся</p>
-            <p className="mt-2 text-sm text-neutral-500">Попробуйте другую нишу или создайте магазин из onboarding.</p>
+            <p className="mt-2 text-sm text-neutral-500">Попробуйте другую нишу или создайте магазин через мастер запуска.</p>
             <Link href="/onboarding" className="mt-4 inline-flex h-10 items-center rounded-2xl bg-ink px-4 text-sm font-semibold text-white">
               Создать магазин
             </Link>
@@ -77,10 +77,10 @@ export default function TemplatesPage() {
                 <p className="mt-2 text-sm text-neutral-600">{template.useCase}</p>
                 <div className="mt-4 flex gap-2">
                   <Link href="/store/oud-house" className="inline-flex h-10 items-center rounded-2xl bg-ink px-4 text-sm font-semibold text-white">
-                    Preview
+                    Открыть демо
                   </Link>
                   <Link href="/onboarding" className="inline-flex h-10 items-center rounded-2xl border border-line bg-white px-4 text-sm font-semibold">
-                    Создать
+                    Создать по шаблону
                   </Link>
                 </div>
               </article>
