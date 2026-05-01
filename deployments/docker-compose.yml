@@ -134,7 +134,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/minio/health/live >/dev/null"]
       interval: 15s
       timeout: 5s
       retries: 5
