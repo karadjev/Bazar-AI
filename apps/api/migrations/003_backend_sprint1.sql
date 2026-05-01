@@ -1,0 +1,22 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS name TEXT;
+
+ALTER TABLE stores
+  ADD COLUMN IF NOT EXISTS niche TEXT,
+  ADD COLUMN IF NOT EXISTS style TEXT;
+
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS image TEXT,
+  ADD COLUMN IF NOT EXISTS featured BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  customer_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_store_created ON leads(store_id, created_at DESC);

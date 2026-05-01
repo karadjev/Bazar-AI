@@ -1,4 +1,6 @@
 import { ArrowUpRight, Loader2, PackageOpen, Sparkles } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 import { money, Product } from "@/lib/api";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "dark";
@@ -205,7 +207,7 @@ export function ProductCard({ product, image, accent = "#0D1117" }: { product: P
   return (
     <article className="overflow-hidden rounded-lg border border-line bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-premium">
       <div className="relative aspect-[4/3] bg-neutral-100">
-        {image ? <img src={image} alt={product.title} className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-neutral-400"><PackageOpen size={28} /></div>}
+        {image ? <Image src={image} alt={product.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" /> : <div className="grid h-full place-items-center text-neutral-400"><PackageOpen size={28} /></div>}
       </div>
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
@@ -215,9 +217,9 @@ export function ProductCard({ product, image, accent = "#0D1117" }: { product: P
         <p className="mt-2 min-h-10 text-sm leading-5 text-neutral-500">{product.short_description || product.description}</p>
         <div className="mt-4 flex items-center justify-between gap-3">
           <span className="text-lg font-semibold">{money(product.price)}</span>
-          <button className="grid h-9 w-9 place-items-center rounded-md bg-ink text-white" title="Открыть товар">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-ink text-white" title="Карточка товара">
             <ArrowUpRight size={16} />
-          </button>
+          </span>
         </div>
       </div>
     </article>
@@ -228,7 +230,7 @@ export function StorePreviewCard({ title, city, image, accent }: { title: string
   return (
     <article className="group overflow-hidden rounded-lg border border-line bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-premium">
       <div className="relative aspect-[5/4] overflow-hidden">
-        <img src={image} alt={title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+        <Image src={image} alt={title} fill className="object-cover transition duration-500 group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 420px" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/72 via-ink/12 to-transparent" />
         <div className="absolute bottom-4 left-4 right-4 text-white">
           <p className="text-xs font-semibold" style={{ color: accent }}>{city}</p>
@@ -236,5 +238,112 @@ export function StorePreviewCard({ title, city, image, accent }: { title: string
         </div>
       </div>
     </article>
+  );
+}
+
+export function Section({
+  id,
+  eyebrow,
+  title,
+  text,
+  children,
+  className = ""
+}: {
+  id?: string;
+  eyebrow?: string;
+  title?: string;
+  text?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section id={id} className={`shell py-14 md:py-20 ${className}`}>
+      {(eyebrow || title || text) && (
+        <div className="mb-8 md:mb-10">
+          {eyebrow && <Badge tone="blue">{eyebrow}</Badge>}
+          {title && <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-balance md:text-5xl">{title}</h2>}
+          {text && <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-600 md:text-base">{text}</p>}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+export function Header() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-line/70 bg-white/90 backdrop-blur-xl">
+      <div className="shell flex h-16 items-center justify-between">
+        <Link href="/" className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-ink text-sm font-semibold text-white">BS</span>
+          <span className="text-sm font-semibold">BuildYourStore.ai</span>
+        </Link>
+        <nav className="hidden items-center gap-6 text-sm font-medium text-neutral-600 md:flex">
+          <Link href="/features" className="hover:text-ink">Features</Link>
+          <Link href="/pricing" className="hover:text-ink">Pricing</Link>
+          <Link href="/templates" className="hover:text-ink">Templates</Link>
+          <Link href="/dashboard" className="hover:text-ink">Dashboard</Link>
+        </nav>
+        <Link href="/onboarding" className="inline-flex h-10 items-center rounded-2xl bg-ink px-4 text-sm font-semibold text-white">Создать магазин</Link>
+      </div>
+    </header>
+  );
+}
+
+export function Footer() {
+  return (
+    <footer className="border-t border-line bg-white">
+      <div className="shell flex flex-col gap-3 py-8 text-sm text-neutral-600 md:flex-row md:items-center md:justify-between">
+        <p>BuildYourStore.ai</p>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/features" className="hover:text-ink">Features</Link>
+          <Link href="/pricing" className="hover:text-ink">Pricing</Link>
+          <Link href="/templates" className="hover:text-ink">Templates</Link>
+          <Link href="/store/oud-house" className="hover:text-ink">Demo Store</Link>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export function FeatureCard({ title, text }: { title: string; text: string }) {
+  return (
+    <Card className="rounded-2xl p-5">
+      <p className="text-lg font-semibold">{title}</p>
+      <p className="mt-3 text-sm leading-6 text-neutral-600">{text}</p>
+    </Card>
+  );
+}
+
+export function StepCard({ index, title, text }: { index: number; title: string; text: string }) {
+  return (
+    <Card className="rounded-2xl p-5">
+      <p className="text-xs font-semibold text-neutral-500">STEP {index}</p>
+      <p className="mt-3 text-lg font-semibold">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-neutral-600">{text}</p>
+    </Card>
+  );
+}
+
+export function PricingCard({
+  name,
+  price,
+  text,
+  featured
+}: {
+  name: string;
+  price: string;
+  text: string;
+  featured?: boolean;
+}) {
+  return (
+    <Card className={`rounded-2xl p-6 ${featured ? "border-ink bg-ink text-white" : ""}`}>
+      <p className="text-lg font-semibold">{name}</p>
+      <p className="mt-4 text-4xl font-semibold">{price}</p>
+      <p className={`mt-3 text-sm leading-6 ${featured ? "text-white/70" : "text-neutral-600"}`}>{text}</p>
+      <Link href="/onboarding" className={`mt-6 inline-flex h-11 w-full items-center justify-center rounded-2xl text-sm font-semibold ${featured ? "bg-white text-ink" : "bg-ink text-white"}`}>
+        Запустить
+      </Link>
+    </Card>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { GripVertical, History, Laptop, MessageCircle, MonitorSmartphone, PanelRight, Redo2, Smartphone, Sparkles, Undo2 } from "lucide-react";
 import { Badge, Button, Card, Field, Tabs, Toast } from "@/components/ui-kit";
@@ -108,7 +109,9 @@ export default function StoreEditorPage() {
             </div>
             <div className={`mx-auto overflow-hidden rounded-lg border border-line transition-all duration-300 ${preview === "Mobile" ? "max-w-[390px]" : "max-w-full"}`} style={{ background: theme.bg, color: theme.text }}>
               <div className="relative min-h-[520px]">
-                <img src={theme.image} alt="" className="h-64 w-full object-cover" />
+                <div className="relative h-64 w-full">
+                  <Image src={theme.image} alt="" fill className="object-cover" sizes="(max-width: 1280px) 100vw, 900px" />
+                </div>
                 <div className="p-5">
                   <Badge tone="gold">{theme.title}</Badge>
                   <h2 className="mt-4 text-4xl font-semibold leading-tight">{settings.title}</h2>

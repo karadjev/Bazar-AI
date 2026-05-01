@@ -6,6 +6,7 @@ type User struct {
 	ID           string    `json:"id"`
 	Phone        string    `json:"phone,omitempty"`
 	Email        string    `json:"email,omitempty"`
+	Name         string    `json:"name,omitempty"`
 	PasswordHash string    `json:"-"`
 	Role         string    `json:"role"`
 	Status       string    `json:"status"`
@@ -18,6 +19,7 @@ type Store struct {
 	OwnerID     string    `json:"owner_id"`
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`
+	Niche       string    `json:"niche,omitempty"`
 	Description string    `json:"description"`
 	Region      string    `json:"region"`
 	City        string    `json:"city"`
@@ -25,6 +27,7 @@ type Store struct {
 	Status      string    `json:"status"`
 	Tariff      string    `json:"tariff"`
 	Theme       string    `json:"theme"`
+	Style       string    `json:"style,omitempty"`
 	Contacts    Contacts  `json:"contacts"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -51,7 +54,9 @@ type Product struct {
 	OldPrice         int64             `json:"old_price,omitempty"`
 	Currency         string            `json:"currency"`
 	Images           []string          `json:"images"`
+	Image            string            `json:"image,omitempty"`
 	StockQuantity    int               `json:"stock_quantity"`
+	Featured         bool              `json:"featured"`
 	SKU              string            `json:"sku"`
 	Status           string            `json:"status"`
 	Attributes       map[string]string `json:"attributes"`
@@ -162,4 +167,14 @@ type OrderEvent struct {
 	Event     string    `json:"event"`
 	Metadata  string    `json:"metadata"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Lead struct {
+	ID           string    `json:"id"`
+	StoreID      string    `json:"store_id"`
+	CustomerName string    `json:"customer_name"`
+	Phone        string    `json:"phone"`
+	Message      string    `json:"message"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
 }

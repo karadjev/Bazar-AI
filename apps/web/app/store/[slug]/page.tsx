@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -17,7 +18,6 @@ import {
   Minus,
   Phone,
   Plus,
-  Search,
   Send,
   ShieldCheck,
   ShoppingBag,
@@ -28,7 +28,7 @@ import {
   Truck,
   type LucideIcon
 } from "lucide-react";
-import { api, demoStore, money, Product, Store } from "@/lib/api";
+import { createLead, demoStore, money, Product, publicStore, Store } from "@/lib/api";
 import { Button, Toast } from "@/components/ui-kit";
 import { StoreTheme, themeBySlug } from "@/lib/themes";
 
@@ -66,7 +66,7 @@ export default function PublicStorePage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await api<{ store: Store; products: Product[] }>(`/api/v1/public/stores/${slug}`);
+        const data = await publicStore(slug);
         setStore({ ...data.store, theme: data.store.theme || theme.code });
         setProducts(data.products.length ? data.products : getThemeProducts(theme));
       } catch {
@@ -84,6 +84,7 @@ export default function PublicStorePage() {
   }, [slug, theme, experience.subhead]);
 
   const cartItems = useMemo(() => products.filter((product) => cart[getKey(product)]), [cart, products]);
+  const featuredProduct = products[0];
   const total = cartItems.reduce((sum, product) => sum + product.price * (cart[getKey(product)] || 0), 0);
   const totalCount = cartItems.reduce((sum, product) => sum + (cart[getKey(product)] || 0), 0);
   const isDark = theme.bg === "#111111";
@@ -113,21 +114,10 @@ export default function PublicStorePage() {
   }
 
   async function checkout() {
-    await api(`/api/v1/public/stores/${store.slug}/orders`, {
-      method: "POST",
-      body: JSON.stringify({
-        customer_name: customer.name || "Гость",
-        customer_phone: customer.phone || "+79000000000",
-        customer_city: customer.city,
-        customer_address: customer.contact,
-        comment: customer.comment,
-        items: cartItems.map((product) => ({
-          product_id: product.id?.startsWith("demo") ? "" : product.id,
-          title: product.title,
-          quantity: cart[getKey(product)],
-          price: product.price
-        }))
-      })
+    await createLead(store.slug, {
+      customerName: customer.name || "Гость",
+      phone: customer.phone || "+79000000000",
+      message: `${customer.comment || "Запрос со storefront"}; items: ${cartItems.map((product) => `${product.title} x${cart[getKey(product)]}`).join(", ")}`
     }).catch(() => null);
     setOrderDone(true);
     setCart({});
@@ -138,8 +128,22 @@ export default function PublicStorePage() {
     <main className="min-h-screen pb-24 md:pb-0" style={{ ...themeStyle, background: theme.bg, color: theme.text }}>
       {toast && <Toast>{toast}</Toast>}
       <StoreHeader store={store} theme={theme} totalCount={totalCount} onCopy={copyLink} whatsapp={whatsapp} />
+      <div className="sticky top-[69px] z-20 border-b backdrop-blur-xl" style={{ background: isDark ? "rgba(20,20,20,0.78)" : "rgba(255,255,255,0.88)", borderColor: borderColor(isDark) }}>
+        <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2 text-sm font-semibold md:px-6">
+          {[
+            ["Hero", "#top"],
+            ["Каталог", "#catalog"],
+            ["Отзывы", "#reviews"],
+            ["Заказ", "#checkout"]
+          ].map(([label, href]) => (
+            <a key={label} href={href} className="rounded-md px-3 py-1.5" style={{ background: isDark ? "rgba(255,255,255,0.08)" : "#F5F7FB" }}>
+              {label}
+            </a>
+          ))}
+        </nav>
+      </div>
 
-      <section className="relative overflow-hidden">
+      <section id="top" className="relative overflow-hidden">
         <div className="absolute inset-0">
           <Image src={theme.image} alt={store.name} fill className="object-cover" priority />
           <div className="absolute inset-0" style={{ background: heroOverlay(isDark, theme.code) }} />
@@ -173,6 +177,29 @@ export default function PublicStorePage() {
           <HeroOrderPreview theme={theme} experience={experience} cartCount={totalCount} total={total} onScrollCheckout={() => document.querySelector("#checkout")?.scrollIntoView({ behavior: "smooth" })} />
         </div>
       </section>
+
+      {featuredProduct && (
+        <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+          <div className="grid gap-4 overflow-hidden rounded-xl border p-4 md:p-6 lg:grid-cols-[1fr_1fr]" style={{ background: theme.surface, borderColor: borderColor(isDark) }}>
+            <div className="relative min-h-[260px] overflow-hidden rounded-lg">
+              <Image src={featuredProduct.images?.[0] || theme.productImage} alt={featuredProduct.title} fill className="object-cover" />
+            </div>
+            <div className="flex flex-col justify-between">
+              <div>
+                <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, 0.2) }}>Featured product</span>
+                <h2 className="mt-4 text-3xl font-semibold leading-tight md:text-4xl">{featuredProduct.title}</h2>
+                <p className="mt-3 text-sm leading-6 opacity-75">{featuredProduct.short_description || featuredProduct.description}</p>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <span className="text-2xl font-semibold">{money(featuredProduct.price)}</span>
+                <button onClick={() => change(featuredProduct, 1)} className="inline-flex h-11 items-center rounded-md px-4 text-sm font-semibold text-white" style={{ background: theme.accent }}>
+                  Добавить в заказ
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-5 md:px-6">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -218,7 +245,7 @@ export default function PublicStorePage() {
 
       <LookbookSection theme={theme} experience={experience} products={products} />
 
-      <section className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+      <section id="reviews" className="mx-auto max-w-7xl px-4 py-8 md:px-6">
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
             <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: alpha(theme.accent, isDark ? 0.24 : 0.14) }}>Отзывы</span>
@@ -320,6 +347,11 @@ export default function PublicStorePage() {
           <span className="flex items-center gap-2"><MessageCircle size={16} /> {store.contacts?.telegram || "@bazar_demo"}</span>
           <span className="flex items-center gap-2"><MapPin size={16} /> {store.city}, {store.region}</span>
         </div>
+        <div className="mx-auto max-w-7xl px-4 pb-6 md:px-6">
+          <Link href="/onboarding" className="inline-flex h-11 items-center rounded-md bg-ink px-4 text-sm font-semibold text-white">
+            Создать свой магазин
+          </Link>
+        </div>
       </footer>
 
       <MobileStickyBar total={total} totalCount={totalCount} theme={theme} whatsapp={whatsapp} />
@@ -337,6 +369,9 @@ function StoreHeader({ store, theme, totalCount, onCopy, whatsapp }: { store: St
           <h2 className="truncate text-lg font-semibold md:text-xl">{store.name}</h2>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/onboarding" className="hidden h-10 items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
+            Создать магазин
+          </Link>
           <button onClick={onCopy} className="hidden h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
             <Copy size={16} />Ссылка
           </button>

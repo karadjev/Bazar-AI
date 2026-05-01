@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   Bot,
   Boxes,
-  CheckCircle2,
   Copy,
   Eye,
   ImagePlus,
@@ -22,7 +21,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, clearSession, demoProducts, demoStore, money, Order, Product, Store } from "@/lib/api";
+import { api, clearSession, dashboardLeads, dashboardStores, demoProducts, demoStore, Lead, money, Product, Store } from "@/lib/api";
 import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
 type ListResponse<T> = T[] | { data?: T[] };
@@ -37,7 +36,7 @@ const nextActions = [
 export function SellerDashboard() {
   const [store, setStore] = useState<Store>(demoStore);
   const [products, setProducts] = useState<Product[]>(demoProducts);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [telegram, setTelegram] = useState("not_connected");
   const [aiText, setAiText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -50,7 +49,10 @@ export function SellerDashboard() {
       setError("");
       try {
         const storesResponse = await api<ListResponse<Store>>("/api/v1/stores/me");
-        const stores = Array.isArray(storesResponse) ? storesResponse : storesResponse.data || [];
+        const modernStores = await dashboardStores().catch(() => null);
+        const stores = modernStores?.data?.length
+          ? modernStores.data
+          : (Array.isArray(storesResponse) ? storesResponse : storesResponse.data || []);
         const current = stores[0] || demoStore;
         setStore(current);
 
@@ -58,14 +60,13 @@ export function SellerDashboard() {
         const loadedProducts = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
         setProducts(loadedProducts.length ? loadedProducts : demoProducts);
 
-        const ordersResponse = await api<ListResponse<Order>>(`/api/v1/stores/${current.id}/orders`);
-        const loadedOrders = Array.isArray(ordersResponse) ? ordersResponse : ordersResponse.data || [];
-        setOrders(loadedOrders);
+        const loadedLeads = await dashboardLeads().catch(() => ({ data: [] as Lead[] }));
+        setLeads(loadedLeads.data || []);
 
         const status = await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`);
         setTelegram(status.status);
       } catch {
-        setOrders([{ id: "BA-DEMO", customer_name: "Амина", customer_phone: "+7 900 111-22-33", status: "new", total_amount: 290000 }]);
+        setLeads([{ id: "LEAD-DEMO", store_id: "demo_store", customer_name: "Амина", phone: "+7 900 111-22-33", status: "new", message: "Хочу оформить заказ" }]);
         setError("Показываем demo-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
       } finally {
         setLoading(false);
@@ -74,10 +75,11 @@ export function SellerDashboard() {
     load();
   }, []);
 
-  const todaySales = useMemo(() => orders.reduce((sum, order) => sum + order.total_amount, 0), [orders]);
+  const todaySales = useMemo(() => leads.length * 290000, [leads]);
   const storeLink = `/store/${store.slug}`;
-  const newOrders = orders.filter((order) => order.status === "new").length || orders.length;
-  const views = Math.max(1248, products.length * 217 + orders.length * 83);
+  const newOrders = leads.filter((lead) => lead.status === "new").length || leads.length;
+  const views = Math.max(1248, products.length * 217 + leads.length * 83);
+  const conversion = views > 0 ? ((newOrders / views) * 100).toFixed(1) : "0.0";
 
   async function createAIProduct() {
     try {
@@ -144,45 +146,94 @@ export function SellerDashboard() {
     setTimeout(() => setToast(""), 2500);
   }
 
+  function showPlaceholder(label: string) {
+    showToast(`${label} скоро появится`);
+  }
+
   return (
     <main className="min-h-screen bg-paper pb-24 text-ink premium-grid md:pb-6">
       {toast && <Toast>{toast}</Toast>}
-      <section className="shell space-y-4 py-4">
-        <header className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-soft">
+      <section className="shell grid gap-4 py-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside className="hidden rounded-2xl border border-line bg-white p-4 shadow-soft lg:block">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-ink text-white"><ShoppingBag size={21} /></div>
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-ink text-white"><ShoppingBag size={18} /></div>
             <div>
-              <p className="text-xs font-semibold uppercase text-sea">Бизнес-пульт</p>
-              <h1 className="text-lg font-semibold">Добро пожаловать, {store.name}</h1>
-              <Link href={storeLink} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-ink">
-                {storeLink}
-                <ArrowUpRight size={13} />
-              </Link>
+              <p className="text-xs font-semibold text-neutral-500">BuildYourStore.ai</p>
+              <p className="text-sm font-semibold">Seller panel</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться</Button>
-            <Button onClick={createAIProduct}><Plus size={17} />Добавить товар</Button>
-            <button onClick={() => { clearSession(); location.href = "/"; }} className="grid h-11 w-11 place-items-center rounded-md border border-line bg-white" title="Logout"><LogOut size={17} /></button>
+          <div className="mt-5 grid gap-2">
+            {["Overview", "Stores", "Leads", "Templates", "Settings"].map((item, index) => (
+              <button key={item} onClick={() => showPlaceholder(item)} className={`h-10 rounded-xl px-3 text-left text-sm font-semibold ${index === 0 ? "bg-ink text-white" : "bg-paper text-neutral-600"}`}>
+                {item}
+              </button>
+            ))}
           </div>
-        </header>
+          <button onClick={() => { clearSession(); location.href = "/"; }} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold">
+            <LogOut size={16} /> Logout
+          </button>
+        </aside>
 
-        {error && (
-          <div className="rounded-lg border border-saffron/30 bg-saffron/10 p-3 text-sm font-semibold text-neutral-800">
-            {error}
-          </div>
-        )}
+        <div className="space-y-4">
+          <header className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-soft">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-lg bg-ink text-white"><ShoppingBag size={21} /></div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-sea">Бизнес-пульт</p>
+                <h1 className="text-lg font-semibold">Добро пожаловать, {store.name}</h1>
+                <Link href={storeLink} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-ink">
+                  {storeLink}
+                  <ArrowUpRight size={13} />
+                </Link>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться</Button>
+              <Button onClick={createAIProduct}><Plus size={17} />Добавить товар</Button>
+            </div>
+          </header>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32" />) : (
-            <>
-              <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="новые заявки" />
-              <MetricCard icon={<TrendingUp size={18} />} label="Выручка" value={money(todaySales)} hint="+18%" />
-              <MetricCard icon={<Boxes size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
-              <MetricCard icon={<Eye size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
-            </>
+          {error && (
+            <div className="rounded-lg border border-saffron/30 bg-saffron/10 p-3 text-sm font-semibold text-neutral-800">
+              {error}
+            </div>
           )}
-        </section>
+
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32" />) : (
+              <>
+                <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="новые заявки" />
+                <MetricCard icon={<TrendingUp size={18} />} label="Выручка" value={money(todaySales)} hint="+18%" />
+                <MetricCard icon={<Boxes size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
+                <MetricCard icon={<Eye size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
+              </>
+            )}
+          </section>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Store performance</h2>
+                <p className="text-xs text-neutral-500">Последние 7 дней по воронке storefront</p>
+              </div>
+              <Badge tone="blue">{conversion}% CR</Badge>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {[
+                ["Просмотры", views, "bg-slate-300"],
+                ["Заявки", newOrders * 4, "bg-violet-300"],
+                ["Заказы", newOrders, "bg-emerald-400"]
+              ].map(([label, value, color]) => (
+                <div key={label as string} className="rounded-xl border border-line bg-white p-3">
+                  <p className="text-xs font-semibold text-neutral-500">{label as string}</p>
+                  <p className="mt-1 text-2xl font-semibold">{String(value)}</p>
+                  <div className="mt-3 h-2 rounded-full bg-paper">
+                    <div className={`h-2 rounded-full ${color as string}`} style={{ width: `${Math.min(Number(value) / Math.max(views, 1), 1) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
         <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="overflow-hidden">
@@ -193,7 +244,7 @@ export function SellerDashboard() {
                 <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">Bazar AI превращает dashboard в план действий: товары, Telegram, шаринг и улучшение витрины.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {nextActions.map((action) => (
-                    <button key={action.title} className="rounded-lg border border-line bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-premium">
+                    <button key={action.title} onClick={() => showPlaceholder(action.title)} className="rounded-lg border border-line bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-premium">
                       <div className="flex items-start gap-3">
                         <span className="grid h-10 w-10 place-items-center rounded-md bg-paper text-sea"><action.icon size={18} /></span>
                         <span>
@@ -235,31 +286,42 @@ export function SellerDashboard() {
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">Последние заказы</h2>
-                <p className="text-xs text-neutral-500">Карточки вместо сухой таблицы</p>
+                <h2 className="text-base font-semibold">Заявки клиентов</h2>
+                <p className="text-xs text-neutral-500">Список обращений и сумма заказа</p>
               </div>
-              <Badge tone="green">{orders.length || 0} всего</Badge>
+              <Badge tone="green">{leads.length || 0} всего</Badge>
             </div>
             <div className="mt-4 space-y-3">
-              {loading ? <Skeleton className="h-44" /> : orders.length === 0 ? (
+              {loading ? <Skeleton className="h-44" /> : leads.length === 0 ? (
                 <EmptyState
                   title="Поделитесь магазином, чтобы получить первый заказ"
                   text="Скопируйте ссылку и отправьте ее клиентам в Telegram, WhatsApp или Instagram."
                   action={<Button onClick={shareStore} variant="secondary"><Share2 size={16} />Поделиться ссылкой</Button>}
                 />
-              ) : orders.slice(0, 4).map((order) => (
-                <article key={order.id} className="rounded-lg border border-line bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-premium">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">{order.customer_name}</p>
-                    <Badge tone={order.status === "new" ? "green" : "blue"}>{order.status}</Badge>
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500">{order.customer_phone}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <p className="text-xl font-semibold">{money(order.total_amount)}</p>
-                    <button className="grid h-9 w-9 place-items-center rounded-md bg-paper text-sea" title="Открыть заказ"><ArrowUpRight size={16} /></button>
-                  </div>
-                </article>
-              ))}
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-line">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-paper text-xs font-semibold text-neutral-500">
+                      <tr>
+                        <th className="px-3 py-2">Клиент</th>
+                        <th className="px-3 py-2">Контакт</th>
+                        <th className="px-3 py-2">Статус</th>
+                        <th className="px-3 py-2 text-right">Сумма</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leads.slice(0, 6).map((lead) => (
+                        <tr key={lead.id} className="border-t border-line bg-white">
+                          <td className="px-3 py-2 font-semibold">{lead.customer_name}</td>
+                          <td className="px-3 py-2 text-xs text-neutral-500">{lead.phone}</td>
+                          <td className="px-3 py-2"><Badge tone={lead.status === "new" ? "green" : "blue"}>{lead.status}</Badge></td>
+                          <td className="px-3 py-2 text-right font-semibold">{money(290000)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </Card>
         </section>
@@ -302,18 +364,19 @@ export function SellerDashboard() {
           </Card>
         </section>
 
-        <Card className="p-4 md:hidden">
-          <h2 className="text-base font-semibold">Telegram статус</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-600">{telegram === "connected" ? "Уведомления активны" : "Подключите Telegram, чтобы получать заказы быстрее."}</p>
-          <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full"><MessageCircle size={17} />Подключить Telegram</Button>
-        </Card>
+          <Card className="p-4 md:hidden">
+            <h2 className="text-base font-semibold">Telegram статус</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">{telegram === "connected" ? "Уведомления активны" : "Подключите Telegram, чтобы получать заказы быстрее."}</p>
+            <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full"><MessageCircle size={17} />Подключить Telegram</Button>
+          </Card>
+        </div>
       </section>
 
       <nav className="fixed bottom-3 left-1/2 z-30 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 justify-between rounded-lg border border-line bg-white/95 p-2 shadow-premium backdrop-blur md:hidden">
-        <button className="grid gap-1 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white"><TrendingUp size={18} className="mx-auto" />Обзор</button>
-        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Boxes size={18} className="mx-auto" />Товары</button>
-        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><PackageCheck size={18} className="mx-auto" />Заказы</button>
-        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Sparkles size={18} className="mx-auto" />AI</button>
+        <button onClick={() => showPlaceholder("Обзор")} className="grid gap-1 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white"><TrendingUp size={18} className="mx-auto" />Обзор</button>
+        <button onClick={() => showPlaceholder("Товары")} className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Boxes size={18} className="mx-auto" />Товары</button>
+        <button onClick={() => showPlaceholder("Заказы")} className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><PackageCheck size={18} className="mx-auto" />Заказы</button>
+        <button onClick={() => showPlaceholder("AI")} className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Sparkles size={18} className="mx-auto" />AI</button>
       </nav>
     </main>
   );

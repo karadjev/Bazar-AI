@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,16 +23,16 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 
 func (r *Repository) CreateUser(ctx context.Context, user User) (User, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO users (phone, email, password_hash, role, status)
-		VALUES ($1, $2, $3, $4, 'active')
-		RETURNING id::text, COALESCE(phone, ''), COALESCE(email, ''), password_hash, role, status, created_at, updated_at
-	`, nullString(user.Phone), nullString(user.Email), user.PasswordHash, fallback(user.Role, "owner"))
+		INSERT INTO users (phone, email, name, password_hash, role, status)
+		VALUES ($1, $2, $3, $4, $5, 'active')
+		RETURNING id::text, COALESCE(phone, ''), COALESCE(email, ''), COALESCE(name, ''), password_hash, role, status, created_at, updated_at
+	`, nullString(user.Phone), nullString(user.Email), nullString(user.Name), user.PasswordHash, fallback(user.Role, "owner"))
 	return scanUser(row)
 }
 
 func (r *Repository) UserByLogin(ctx context.Context, login string) (User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id::text, COALESCE(phone, ''), COALESCE(email, ''), password_hash, role, status, created_at, updated_at
+		SELECT id::text, COALESCE(phone, ''), COALESCE(email, ''), COALESCE(name, ''), password_hash, role, status, created_at, updated_at
 		FROM users
 		WHERE deleted_at IS NULL AND (phone = $1 OR email = $1)
 	`, login)
@@ -40,7 +41,7 @@ func (r *Repository) UserByLogin(ctx context.Context, login string) (User, error
 
 func (r *Repository) UserByID(ctx context.Context, id string) (User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id::text, COALESCE(phone, ''), COALESCE(email, ''), password_hash, role, status, created_at, updated_at
+		SELECT id::text, COALESCE(phone, ''), COALESCE(email, ''), COALESCE(name, ''), password_hash, role, status, created_at, updated_at
 		FROM users
 		WHERE id = $1 AND deleted_at IS NULL
 	`, id)
@@ -108,13 +109,30 @@ func (r *Repository) RevokeRefreshTokensByUser(ctx context.Context, userID strin
 
 func (r *Repository) CreateStore(ctx context.Context, store Store) (Store, error) {
 	contacts, _ := json.Marshal(store.Contacts)
-	slug := Slugify(store.Name)
-	row := r.db.QueryRow(ctx, `
-		INSERT INTO stores (owner_id, name, slug, description, region, city, currency, status, theme_code, contacts)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', $8, $9::jsonb)
-		RETURNING id::text, owner_id::text, name, slug, COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), contacts, created_at, updated_at
-	`, store.OwnerID, store.Name, slug, store.Description, store.Region, store.City, fallback(store.Currency, "RUB"), store.Theme, string(contacts))
-	return scanStore(row)
+	baseSlug := Slugify(store.Name)
+	lastErr := errors.New("could not create store")
+	for attempt := 0; attempt < 5; attempt++ {
+		slug := baseSlug
+		if attempt > 0 {
+			slug = fmt.Sprintf("%s-%d", baseSlug, attempt+1)
+		}
+		row := r.db.QueryRow(ctx, `
+		INSERT INTO stores (owner_id, name, slug, niche, description, region, city, currency, status, theme_code, style, contacts)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', $9, $10, $11::jsonb)
+		RETURNING id::text, owner_id::text, name, slug, COALESCE(niche, ''), COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), COALESCE(style, ''), contacts, created_at, updated_at
+	`, store.OwnerID, store.Name, slug, store.Niche, store.Description, store.Region, store.City, fallback(store.Currency, "RUB"), store.Theme, fallback(store.Style, store.Theme), string(contacts))
+		created, err := scanStore(row)
+		if err == nil {
+			return created, nil
+		}
+		lastErr = err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			continue
+		}
+		return Store{}, err
+	}
+	return Store{}, lastErr
 }
 
 func (r *Repository) StoreCountByOwner(ctx context.Context, ownerID string) (int, error) {
@@ -125,7 +143,7 @@ func (r *Repository) StoreCountByOwner(ctx context.Context, ownerID string) (int
 
 func (r *Repository) Stores(ctx context.Context) ([]Store, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text, owner_id::text, name, slug, COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), contacts, created_at, updated_at
+		SELECT id::text, owner_id::text, name, slug, COALESCE(niche, ''), COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), COALESCE(style, ''), contacts, created_at, updated_at
 		FROM stores WHERE deleted_at IS NULL ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -141,7 +159,7 @@ func (r *Repository) StoresByOwner(ctx context.Context, ownerID string, limit, o
 		return nil, 0, err
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text, owner_id::text, name, slug, COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), contacts, created_at, updated_at
+		SELECT id::text, owner_id::text, name, slug, COALESCE(niche, ''), COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), COALESCE(style, ''), contacts, created_at, updated_at
 		FROM stores WHERE owner_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3
 	`, ownerID, limit, offset)
 	if err != nil {
@@ -154,7 +172,7 @@ func (r *Repository) StoresByOwner(ctx context.Context, ownerID string, limit, o
 
 func (r *Repository) StoreByID(ctx context.Context, id string) (Store, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id::text, owner_id::text, name, slug, COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), contacts, created_at, updated_at
+		SELECT id::text, owner_id::text, name, slug, COALESCE(niche, ''), COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), COALESCE(style, ''), contacts, created_at, updated_at
 		FROM stores WHERE id = $1 AND deleted_at IS NULL
 	`, id)
 	return scanStore(row)
@@ -162,7 +180,7 @@ func (r *Repository) StoreByID(ctx context.Context, id string) (Store, error) {
 
 func (r *Repository) StoreBySlug(ctx context.Context, slug string) (Store, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT id::text, owner_id::text, name, slug, COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), contacts, created_at, updated_at
+		SELECT id::text, owner_id::text, name, slug, COALESCE(niche, ''), COALESCE(description, ''), COALESCE(region, ''), COALESCE(city, ''), currency, status, COALESCE(theme_code, ''), COALESCE(style, ''), contacts, created_at, updated_at
 		FROM stores WHERE slug = $1 AND deleted_at IS NULL
 	`, slug)
 	return scanStore(row)
@@ -176,10 +194,10 @@ func (r *Repository) CreateProduct(ctx context.Context, product Product) (Produc
 	}
 	defer tx.Rollback(ctx)
 	row := tx.QueryRow(ctx, `
-		INSERT INTO products (store_id, category_id, title, slug, description, short_description, price, old_price, currency, stock_quantity, sku, status, attributes, seo_title, seo_description)
-		VALUES ($1, nullif($2, '')::uuid, $3, $4, $5, $6, $7, nullif($8, 0), $9, $10, $11, $12, $13::jsonb, $14, $15)
-		RETURNING id::text, store_id::text, COALESCE(category_id::text, ''), title, slug, COALESCE(description, ''), COALESCE(short_description, ''), price, COALESCE(old_price, 0), currency, stock_quantity, COALESCE(sku, ''), status, attributes, COALESCE(seo_title, ''), COALESCE(seo_description, ''), created_at
-	`, product.StoreID, product.CategoryID, product.Title, Slugify(product.Title), product.Description, product.ShortDescription, product.Price, product.OldPrice, fallback(product.Currency, "RUB"), product.StockQuantity, product.SKU, fallback(product.Status, "active"), string(attrs), product.SEOTitle, product.SEODescription)
+		INSERT INTO products (store_id, category_id, title, slug, description, short_description, price, old_price, currency, stock_quantity, sku, status, attributes, seo_title, seo_description, image, featured)
+		VALUES ($1, nullif($2, '')::uuid, $3, $4, $5, $6, $7, nullif($8, 0), $9, $10, $11, $12, $13::jsonb, $14, $15, nullif($16, ''), $17)
+		RETURNING id::text, store_id::text, COALESCE(category_id::text, ''), title, slug, COALESCE(description, ''), COALESCE(short_description, ''), price, COALESCE(old_price, 0), currency, COALESCE(image, ''), featured, stock_quantity, COALESCE(sku, ''), status, attributes, COALESCE(seo_title, ''), COALESCE(seo_description, ''), created_at
+	`, product.StoreID, product.CategoryID, product.Title, Slugify(product.Title), product.Description, product.ShortDescription, product.Price, product.OldPrice, fallback(product.Currency, "RUB"), product.StockQuantity, product.SKU, fallback(product.Status, "active"), string(attrs), product.SEOTitle, product.SEODescription, product.Image, product.Featured)
 	created, err := scanProduct(row)
 	if err != nil {
 		return Product{}, err
@@ -340,6 +358,42 @@ func (r *Repository) OrdersByStore(ctx context.Context, storeID string, limit, o
 		orders = append(orders, order)
 	}
 	return orders, total, rows.Err()
+}
+
+func (r *Repository) CreateLead(ctx context.Context, lead Lead) (Lead, error) {
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO leads (store_id, customer_name, phone, message, status)
+		VALUES ($1, $2, $3, $4, COALESCE(nullif($5, ''), 'new'))
+		RETURNING id::text, store_id::text, customer_name, phone, COALESCE(message, ''), status, created_at
+	`, lead.StoreID, lead.CustomerName, lead.Phone, lead.Message, lead.Status)
+	return scanLead(row)
+}
+
+func (r *Repository) LeadsByStore(ctx context.Context, storeID string, limit, offset int) ([]Lead, int, error) {
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*)::int FROM leads WHERE store_id = $1`, storeID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT id::text, store_id::text, customer_name, phone, COALESCE(message, ''), status, created_at
+		FROM leads
+		WHERE store_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, storeID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	leads := []Lead{}
+	for rows.Next() {
+		lead, scanErr := scanLead(rows)
+		if scanErr != nil {
+			return nil, 0, scanErr
+		}
+		leads = append(leads, lead)
+	}
+	return leads, total, rows.Err()
 }
 
 func (r *Repository) AddGeneration(ctx context.Context, generation AIGeneration) (AIGeneration, error) {
@@ -509,14 +563,14 @@ func DefaultFreeLimits() TariffLimits {
 
 func scanUser(row pgx.Row) (User, error) {
 	var user User
-	err := row.Scan(&user.ID, &user.Phone, &user.Email, &user.PasswordHash, &user.Role, &user.Status, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(&user.ID, &user.Phone, &user.Email, &user.Name, &user.PasswordHash, &user.Role, &user.Status, &user.CreatedAt, &user.UpdatedAt)
 	return user, err
 }
 
 func scanStore(row pgx.Row) (Store, error) {
 	var store Store
 	var contacts []byte
-	err := row.Scan(&store.ID, &store.OwnerID, &store.Name, &store.Slug, &store.Description, &store.Region, &store.City, &store.Currency, &store.Status, &store.Theme, &contacts, &store.CreatedAt, &store.UpdatedAt)
+	err := row.Scan(&store.ID, &store.OwnerID, &store.Name, &store.Slug, &store.Niche, &store.Description, &store.Region, &store.City, &store.Currency, &store.Status, &store.Theme, &store.Style, &contacts, &store.CreatedAt, &store.UpdatedAt)
 	if len(contacts) > 0 {
 		_ = json.Unmarshal(contacts, &store.Contacts)
 	}
@@ -536,13 +590,13 @@ func scanStores(rows pgx.Rows) ([]Store, error) {
 }
 
 func productSelect() string {
-	return `SELECT p.id::text, p.store_id::text, COALESCE(p.category_id::text, ''), p.title, p.slug, COALESCE(p.description, ''), COALESCE(p.short_description, ''), p.price, COALESCE(p.old_price, 0), p.currency, p.stock_quantity, COALESCE(p.sku, ''), p.status, p.attributes, COALESCE(p.seo_title, ''), COALESCE(p.seo_description, ''), p.created_at FROM products p`
+	return `SELECT p.id::text, p.store_id::text, COALESCE(p.category_id::text, ''), p.title, p.slug, COALESCE(p.description, ''), COALESCE(p.short_description, ''), p.price, COALESCE(p.old_price, 0), p.currency, COALESCE(p.image, ''), p.featured, p.stock_quantity, COALESCE(p.sku, ''), p.status, p.attributes, COALESCE(p.seo_title, ''), COALESCE(p.seo_description, ''), p.created_at FROM products p`
 }
 
 func scanProduct(row pgx.Row) (Product, error) {
 	var product Product
 	var attrs []byte
-	err := row.Scan(&product.ID, &product.StoreID, &product.CategoryID, &product.Title, &product.Slug, &product.Description, &product.ShortDescription, &product.Price, &product.OldPrice, &product.Currency, &product.StockQuantity, &product.SKU, &product.Status, &attrs, &product.SEOTitle, &product.SEODescription, &product.CreatedAt)
+	err := row.Scan(&product.ID, &product.StoreID, &product.CategoryID, &product.Title, &product.Slug, &product.Description, &product.ShortDescription, &product.Price, &product.OldPrice, &product.Currency, &product.Image, &product.Featured, &product.StockQuantity, &product.SKU, &product.Status, &attrs, &product.SEOTitle, &product.SEODescription, &product.CreatedAt)
 	if len(attrs) > 0 {
 		_ = json.Unmarshal(attrs, &product.Attributes)
 	}
@@ -627,6 +681,12 @@ func scanNotificationJob(row pgx.Row) (NotificationJob, error) {
 	var job NotificationJob
 	err := row.Scan(&job.ID, &job.StoreID, &job.OrderID, &job.Channel, &job.Status, &job.Payload, &job.CreatedAt)
 	return job, err
+}
+
+func scanLead(row pgx.Row) (Lead, error) {
+	var lead Lead
+	err := row.Scan(&lead.ID, &lead.StoreID, &lead.CustomerName, &lead.Phone, &lead.Message, &lead.Status, &lead.CreatedAt)
+	return lead, err
 }
 
 func nullString(value string) any {

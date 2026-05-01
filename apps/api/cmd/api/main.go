@@ -17,6 +17,7 @@ import (
 	"bazar-ai/apps/api/internal/products"
 	"bazar-ai/apps/api/internal/storage"
 	"bazar-ai/apps/api/internal/stores"
+	"bazar-ai/apps/api/internal/sprint"
 	"bazar-ai/apps/api/internal/telegram"
 	"bazar-ai/apps/api/pkg/config"
 	"bazar-ai/apps/api/pkg/database"
@@ -53,6 +54,7 @@ func main() {
 	aiHandler := ai.NewHandler(repo, ai.NewService(cfg.AIAPIURL, cfg.AIAPIKey, cfg.AIModel))
 	onboardingHandler := onboarding.NewHandler(repo, cfg.PublicAppURL)
 	adminHandler := admin.NewHandler(repo)
+	sprintHandler := sprint.NewHandler(repo)
 
 	owner := authHandler.Middleware("owner", "admin", "manager")
 	adminOnly := authHandler.Middleware("admin")
@@ -99,6 +101,12 @@ func main() {
 	mux.Handle("POST /api/v1/ai/generate-marketing", owner(http.HandlerFunc(aiHandler.GenerateMarketing)))
 
 	mux.Handle("GET /api/v1/admin/stats", adminOnly(http.HandlerFunc(adminHandler.Stats)))
+
+	mux.Handle("POST /api/onboarding/create-store", owner(http.HandlerFunc(sprintHandler.CreateStore)))
+	mux.Handle("GET /api/dashboard/stores", owner(http.HandlerFunc(sprintHandler.DashboardStores)))
+	mux.Handle("GET /api/dashboard/leads", owner(http.HandlerFunc(sprintHandler.DashboardLeads)))
+	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
+	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)
 
 	handler := middleware.StructuredLogger(middleware.RequestID(statusMetrics.Middleware(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins)))))
 	server := &http.Server{Addr: cfg.APIAddr, Handler: handler}

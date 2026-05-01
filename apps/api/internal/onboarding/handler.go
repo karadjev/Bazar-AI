@@ -40,8 +40,8 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store, err := h.repo.CreateStore(r.Context(), platform.Store{
-		OwnerID: user.ID, Name: req.Name, Description: "AI-магазин для ниши: " + req.Niche,
-		Region: req.Region, City: req.City, Currency: "RUB", Theme: req.Style, Contacts: req.Contacts,
+		OwnerID: user.ID, Name: req.Name, Niche: req.Niche, Description: "AI-магазин для ниши: " + req.Niche,
+		Region: req.Region, City: req.City, Currency: "RUB", Theme: req.Style, Style: req.Style, Contacts: req.Contacts,
 	})
 	if err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")

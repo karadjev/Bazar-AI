@@ -1,11 +1,14 @@
 export type Store = {
   id: string;
+  owner_id?: string;
   name: string;
   slug: string;
+  niche?: string;
   description: string;
   region: string;
   city: string;
   theme: string;
+  style?: string;
   contacts?: { phone?: string; whatsapp?: string; telegram?: string; instagram?: string };
 };
 
@@ -20,6 +23,18 @@ export type Product = {
   currency?: string;
   stock_quantity?: number;
   images?: string[];
+  image?: string;
+  featured?: boolean;
+};
+
+export type Lead = {
+  id: string;
+  store_id: string;
+  customer_name: string;
+  phone: string;
+  message: string;
+  status: string;
+  created_at?: string;
 };
 
 export type Order = {
@@ -109,4 +124,37 @@ export async function registerDemo(email: string, password: string) {
   });
   setSession(result.access_token, result.refresh_token);
   return result;
+}
+
+export async function createStoreOnboarding(input: {
+  name: string;
+  niche: string;
+  city: string;
+  region: string;
+  style: string;
+  contacts: { phone?: string; whatsapp?: string; telegram?: string };
+}) {
+  return api<{ store: Store }>("/api/onboarding/create-store", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function dashboardStores() {
+  return api<{ data: Store[] }>("/api/dashboard/stores");
+}
+
+export async function dashboardLeads() {
+  return api<{ data: Lead[] }>("/api/dashboard/leads");
+}
+
+export async function publicStore(slug: string) {
+  return api<{ store: Store; products: Product[] }>(`/api/store/${slug}`);
+}
+
+export async function createLead(slug: string, payload: { customerName: string; phone: string; message: string }) {
+  return api<Lead>(`/api/store/${slug}/lead`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }

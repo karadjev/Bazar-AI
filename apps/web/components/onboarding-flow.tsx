@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -26,7 +27,7 @@ import {
   Wand2,
   type LucideIcon
 } from "lucide-react";
-import { api, registerDemo, Store } from "@/lib/api";
+import { api, createStoreOnboarding, registerDemo, setSession, Store } from "@/lib/api";
 import { Badge, Button, Field, Stepper, Toast } from "@/components/ui-kit";
 import { storefrontThemes, themeByNiche } from "@/lib/themes";
 
@@ -92,19 +93,15 @@ export function OnboardingFlow() {
           method: "POST",
           body: JSON.stringify({ login: form.email, password: form.password })
         });
-        localStorage.setItem("bazar_access_token", login.access_token);
-        localStorage.setItem("bazar_refresh_token", login.refresh_token);
+        setSession(login.access_token, login.refresh_token);
       });
-      const result = await api<{ store: Store; public_url: string }>("/api/v1/onboarding/complete", {
-        method: "POST",
-        body: JSON.stringify({
-          niche: form.niche,
-          name: form.name,
-          region: form.region,
-          city: form.city,
-          style: form.style,
-          contacts: { phone: form.phone, whatsapp: form.whatsapp, telegram: form.telegram }
-        })
+      const result = await createStoreOnboarding({
+        niche: form.niche,
+        name: form.name,
+        region: form.region,
+        city: form.city,
+        style: form.style,
+        contacts: { phone: form.phone, whatsapp: form.whatsapp, telegram: form.telegram }
       });
       setStore(result.store);
     } catch {
@@ -166,7 +163,25 @@ export function OnboardingFlow() {
           </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_390px]">
+          <aside className="hidden xl:block">
+            <div className="sticky top-24 rounded-2xl border border-line bg-white p-4 shadow-soft">
+              <p className="text-xs font-semibold uppercase text-neutral-500">Прогресс запуска</p>
+              <div className="mt-4 space-y-2">
+                {steps.map((item, index) => (
+                  <div key={item} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${index === step ? "border-ink bg-ink text-white" : index < step ? "border-mint/30 bg-mint/10 text-neutral-800" : "border-line bg-paper text-neutral-500"}`}>
+                    {index + 1}. {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-xl bg-paper p-3">
+                <p className="text-xs font-semibold text-neutral-500">Текущий магазин</p>
+                <p className="mt-1 text-sm font-semibold">{form.name}</p>
+                <p className="mt-1 text-xs text-neutral-500">{form.city}, {form.region}</p>
+              </div>
+            </div>
+          </aside>
+
           <section className="rounded-lg border border-line bg-white p-4 shadow-premium md:p-7">
             {step === 0 && (
               <WizardPanel eyebrow="Шаг 1" title="Что вы продаете?">
@@ -233,13 +248,14 @@ export function OnboardingFlow() {
                       className={`group overflow-hidden rounded-lg border bg-white text-left transition duration-200 hover:-translate-y-1 hover:shadow-premium ${form.style === theme.code ? "border-ink ring-4 ring-ink/8" : "border-line"}`}
                     >
                       <div className="relative h-32 overflow-hidden">
-                        <img src={theme.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        <Image src={theme.image} alt="" fill className="object-cover transition duration-500 group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 480px" />
                         <div className="absolute inset-0 bg-gradient-to-t from-ink/72 via-ink/12 to-transparent" />
                         <span className="absolute bottom-3 left-3 rounded-md px-2 py-1 text-xs font-semibold text-white" style={{ background: theme.accent }}>{theme.title}</span>
                       </div>
                       <div className="p-4">
                         <p className="text-sm font-semibold">{theme.mood} visual pack</p>
                         <p className="mt-1 text-xs leading-5 text-neutral-500">{theme.tagline}</p>
+                        <p className="mt-2 text-[11px] font-semibold text-neutral-400">{theme.structure.slice(0, 3).join(" · ")}</p>
                       </div>
                     </button>
                   ))}
@@ -332,7 +348,7 @@ function PhonePreview({ form, theme }: { form: { niche: string; name: string; ci
     <div className="rounded-[28px] border border-ink/10 bg-ink p-3 shadow-premium">
       <div className="overflow-hidden rounded-[22px]" style={{ background: theme.bg, color: theme.text }}>
         <div className="relative h-72 overflow-hidden">
-          <img src={theme.image} alt="" className="h-full w-full object-cover" />
+          <Image src={theme.image} alt="" fill className="object-cover" sizes="360px" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-transparent" />
           <div className="absolute left-4 right-4 top-4 flex items-center justify-between">
             <span className="rounded-full bg-white/88 px-3 py-1 text-[11px] font-semibold text-ink">{theme.title}</span>
@@ -353,7 +369,7 @@ function PhonePreview({ form, theme }: { form: { niche: string; name: string; ci
           <div className="mt-4 grid gap-3">
             {[theme.productImage, "https://images.unsplash.com/photo-1520975954732-35dd22299614?auto=format&fit=crop&w=900&q=80"].map((image, index) => (
               <div key={image} className="flex items-center gap-3 rounded-lg p-2" style={{ background: theme.surface }}>
-                <img src={image} alt="" className="h-16 w-16 rounded-md object-cover" />
+                <Image src={image} alt="" width={64} height={64} className="h-16 w-16 rounded-md object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{index === 0 ? theme.category : form.niche}</p>
                   <p className="mt-1 text-xs opacity-60">от {index === 0 ? "4 500" : "2 900"} ₽</p>
@@ -417,7 +433,7 @@ function SuccessScreen({
           <ArrowRight size={18} />Посмотреть магазин
         </Link>
       </div>
-      <button className="mt-3 inline-flex h-11 items-center gap-2 rounded-md border border-line bg-white px-4 text-sm font-semibold transition hover:bg-neutral-50">
+      <button onClick={onCopy} className="mt-3 inline-flex h-11 items-center gap-2 rounded-md border border-line bg-white px-4 text-sm font-semibold transition hover:bg-neutral-50">
         <Share2 size={17} />Поделиться витриной
       </button>
     </div>
