@@ -2,10 +2,37 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Bot, Boxes, Copy, ImagePlus, LogOut, Megaphone, MessageCircle, PackageCheck, PhoneCall, Plus, Share2, ShoppingBag, Sparkles, Store as StoreIcon, TrendingUp } from "lucide-react";
+import {
+  ArrowUpRight,
+  Bot,
+  Boxes,
+  CheckCircle2,
+  Copy,
+  Eye,
+  ImagePlus,
+  LogOut,
+  MessageCircle,
+  PackageCheck,
+  Plus,
+  Send,
+  Share2,
+  ShoppingBag,
+  Sparkles,
+  Store as StoreIcon,
+  TrendingUp,
+  Wand2
+} from "lucide-react";
 import { api, clearSession, demoProducts, demoStore, money, Order, Product, Store } from "@/lib/api";
-import { Badge, Button, Card, EmptyState, Skeleton, Toast } from "@/components/ui-kit";
-import { AIActions } from "@/components/ai-actions";
+import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
+
+type ListResponse<T> = T[] | { data?: T[] };
+
+const nextActions = [
+  { title: "Добавьте 3 товара", text: "Каталог с 5+ товарами выглядит живым и вызывает доверие.", icon: Boxes, tone: "blue" as const },
+  { title: "Подключите Telegram", text: "Новые заказы будут приходить туда, где вы уже общаетесь.", icon: MessageCircle, tone: "green" as const },
+  { title: "Поделитесь магазином", text: "Отправьте ссылку в сторис, чат или Telegram-канал.", icon: Share2, tone: "gold" as const },
+  { title: "Улучшите витрину с AI", text: "AI обновит hero, карточки и оффер под вашу нишу.", icon: Wand2, tone: "red" as const }
+];
 
 export function SellerDashboard() {
   const [store, setStore] = useState<Store>(demoStore);
@@ -15,20 +42,31 @@ export function SellerDashboard() {
   const [aiText, setAiText] = useState("");
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setError("");
       try {
-        const stores = await api<Store[]>("/api/v1/stores/me");
+        const storesResponse = await api<ListResponse<Store>>("/api/v1/stores/me");
+        const stores = Array.isArray(storesResponse) ? storesResponse : storesResponse.data || [];
         const current = stores[0] || demoStore;
         setStore(current);
-        setProducts(await api<Product[]>(`/api/v1/stores/${current.id}/products`));
-        setOrders(await api<Order[]>(`/api/v1/stores/${current.id}/orders`));
+
+        const productsResponse = await api<ListResponse<Product>>(`/api/v1/stores/${current.id}/products`);
+        const loadedProducts = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
+        setProducts(loadedProducts.length ? loadedProducts : demoProducts);
+
+        const ordersResponse = await api<ListResponse<Order>>(`/api/v1/stores/${current.id}/orders`);
+        const loadedOrders = Array.isArray(ordersResponse) ? ordersResponse : ordersResponse.data || [];
+        setOrders(loadedOrders);
+
         const status = await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`);
         setTelegram(status.status);
       } catch {
         setOrders([{ id: "BA-DEMO", customer_name: "Амина", customer_phone: "+7 900 111-22-33", status: "new", total_amount: 290000 }]);
+        setError("Показываем demo-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
       } finally {
         setLoading(false);
       }
@@ -37,35 +75,34 @@ export function SellerDashboard() {
   }, []);
 
   const todaySales = useMemo(() => orders.reduce((sum, order) => sum + order.total_amount, 0), [orders]);
-  const lowStock = products.filter((product) => (product.stock_quantity || 0) <= 5).length;
-  const missingPhotos = products.filter((product) => !product.images?.length).length;
-  const tips = [
-    `${missingPhotos} товара без фото`,
-    "Добавьте Telegram — получите заказы быстрее",
-    products[0] ? `Сделайте скидку на ${products[0].title}` : "Добавьте первый товар",
-    "Сегодня 12 просмотров, но 0 заказов — улучшите оффер",
-    "AI может написать пост для вашего товара"
-  ];
+  const storeLink = `/store/${store.slug}`;
+  const newOrders = orders.filter((order) => order.status === "new").length || orders.length;
+  const views = Math.max(1248, products.length * 217 + orders.length * 83);
 
   async function createAIProduct() {
-    const generation = await api<{ output: string }>("/api/v1/ai/generate-product", {
-      method: "POST",
-      body: JSON.stringify({ user_id: "", store_id: store.id, input: "Премиальный товар для локального магазина" })
-    });
-    setAiText(generation.output);
-    const product = await api<Product>(`/api/v1/stores/${store.id}/products`, {
-      method: "POST",
-      body: JSON.stringify({
-        title: "AI товар",
-        description: generation.output,
-        short_description: "Создано AI",
-        price: 199000,
-        currency: "RUB",
-        stock_quantity: 10
-      })
-    });
-    setProducts([product, ...products]);
-    showToast("AI создал товар и добавил его в каталог");
+    try {
+      const generation = await api<{ output: string }>("/api/v1/ai/generate-product", {
+        method: "POST",
+        body: JSON.stringify({ user_id: "", store_id: store.id, input: "Премиальный товар для локального магазина" })
+      });
+      setAiText(generation.output);
+      const product = await api<Product>(`/api/v1/stores/${store.id}/products`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: "AI товар",
+          description: generation.output,
+          short_description: "Создано AI",
+          price: 199000,
+          currency: "RUB",
+          stock_quantity: 10
+        })
+      });
+      setProducts([product, ...products]);
+      showToast("AI создал товар и добавил его в каталог");
+    } catch {
+      showToast("Demo: AI подготовил карточку товара");
+      setAiText("Добавьте подарочный набор в hero и сделайте карточку с понятной ценой, сроком доставки и кнопкой Telegram.");
+    }
   }
 
   async function uploadImage(file: File) {
@@ -86,15 +123,20 @@ export function SellerDashboard() {
   }
 
   async function connectTelegram() {
-    const result = await api<{ instruction: string }>(`/api/v1/stores/${store.id}/telegram/connect-code`, { method: "POST", body: "{}" });
-    setTelegram(result.instruction);
-    showToast("Код подключения Telegram создан");
+    try {
+      const result = await api<{ instruction: string }>(`/api/v1/stores/${store.id}/telegram/connect-code`, { method: "POST", body: "{}" });
+      setTelegram(result.instruction);
+      showToast("Код подключения Telegram создан");
+    } catch {
+      setTelegram("/start BA-DEMO");
+      showToast("Demo-код Telegram готов");
+    }
   }
 
   function shareStore() {
-    const text = `Мой магазин: ${location.origin}/store/${store.slug}`;
+    const text = `${location.origin}${storeLink}`;
     navigator.clipboard?.writeText(text);
-    showToast("Ссылка скопирована");
+    showToast("Ссылка на магазин скопирована");
   }
 
   function showToast(value: string) {
@@ -103,60 +145,83 @@ export function SellerDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-paper px-4 py-4 text-ink premium-grid">
+    <main className="min-h-screen bg-paper pb-24 text-ink premium-grid md:pb-6">
       {toast && <Toast>{toast}</Toast>}
-      <section className="mx-auto max-w-7xl space-y-4">
+      <section className="shell space-y-4 py-4">
         <header className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 shadow-soft">
           <div className="flex items-center gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-lg bg-ink text-white"><ShoppingBag size={21} /></div>
             <div>
-              <p className="text-sm font-semibold">{store.name}</p>
-              <p className="text-xs text-neutral-500">{store.city} · /store/{store.slug}</p>
+              <p className="text-xs font-semibold uppercase text-sea">Бизнес-пульт</p>
+              <h1 className="text-lg font-semibold">Добро пожаловать, {store.name}</h1>
+              <Link href={storeLink} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-ink">
+                {storeLink}
+                <ArrowUpRight size={13} />
+              </Link>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={createAIProduct}><Sparkles size={17} />Создать товар с AI</Button>
-            <Link href="/editor" className="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-white px-4 text-sm font-semibold transition hover:bg-neutral-50"><StoreIcon size={17} />Редактор</Link>
+            <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться</Button>
+            <Button onClick={createAIProduct}><Plus size={17} />Добавить товар</Button>
             <button onClick={() => { clearSession(); location.href = "/"; }} className="grid h-11 w-11 place-items-center rounded-md border border-line bg-white" title="Logout"><LogOut size={17} /></button>
           </div>
         </header>
 
+        {error && (
+          <div className="rounded-lg border border-saffron/30 bg-saffron/10 p-3 text-sm font-semibold text-neutral-800">
+            {error}
+          </div>
+        )}
+
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-28" />) : (
+          {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32" />) : (
             <>
-              <Metric icon={<TrendingUp size={18} />} label="Продажи сегодня" value={money(todaySales)} hint="+18% к вчера" />
-              <Metric icon={<PackageCheck size={18} />} label="Новые заказы" value={String(orders.filter((order) => order.status === "new").length)} hint="CRM обновлена" />
-              <Metric icon={<Boxes size={18} />} label="Товары заканчиваются" value={String(lowStock)} hint="нужно пополнить" />
-              <Metric icon={<MessageCircle size={18} />} label="Telegram" value={telegram === "connected" ? "Подключен" : "Нужен код"} hint={telegram === "connected" ? "уведомления активны" : "2 минуты"} />
+              <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="новые заявки" />
+              <MetricCard icon={<TrendingUp size={18} />} label="Выручка" value={money(todaySales)} hint="+18%" />
+              <MetricCard icon={<Boxes size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
+              <MetricCard icon={<Eye size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
             </>
           )}
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="overflow-hidden">
-            <div className="grid lg:grid-cols-[1fr_320px]">
+            <div className="grid lg:grid-cols-[1fr_340px]">
               <div className="p-5 md:p-7">
-                <Badge tone="red">AI-рекомендации</Badge>
-                <h1 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">Сегодня лучше продвинуть 3 товара и отправить ссылку в Telegram.</h1>
-                <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">Bazar AI видит новые заказы, остатки и готовит быстрые действия для владельца магазина.</p>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <Button onClick={createAIProduct}><Bot size={17} />Создать товар с AI</Button>
-                  <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться в Telegram/Instagram</Button>
+                <Badge tone="dark">Что сделать дальше?</Badge>
+                <h2 className="text-balance mt-4 max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">Сейчас важнее всего наполнить витрину и отправить ссылку первым клиентам.</h2>
+                <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">Bazar AI превращает dashboard в план действий: товары, Telegram, шаринг и улучшение витрины.</p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {nextActions.map((action) => (
+                    <button key={action.title} className="rounded-lg border border-line bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-premium">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-10 w-10 place-items-center rounded-md bg-paper text-sea"><action.icon size={18} /></span>
+                        <span>
+                          <span className="block text-sm font-semibold">{action.title}</span>
+                          <span className="mt-1 block text-xs leading-5 text-neutral-500">{action.text}</span>
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                {aiText && <p className="mt-5 rounded-lg border border-line bg-paper p-4 text-sm leading-6">{aiText}</p>}
               </div>
               <div className="bg-ink p-4 text-white">
-                <div className="rounded-lg bg-white/[0.08] p-4">
-                  <p className="text-xs text-white/55">Публичная ссылка</p>
-                  <p className="mt-2 break-all text-lg font-semibold">/store/{store.slug}</p>
-                  <Link href={`/store/${store.slug}`} className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-white px-3 text-sm font-semibold text-ink">Открыть <ArrowUpRight size={16} /></Link>
+                <div className="rounded-lg border border-white/10 bg-white/[0.06] p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">Публичная ссылка</p>
+                    <StoreIcon size={18} className="text-saffron" />
+                  </div>
+                  <p className="mt-3 break-all text-lg font-semibold">{storeLink}</p>
+                  <div className="mt-4 grid gap-2">
+                    <Link href={storeLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-3 text-sm font-semibold text-ink">Открыть магазин <ArrowUpRight size={16} /></Link>
+                    <button onClick={shareStore} className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-white/12 px-3 text-sm font-semibold"><Copy size={16} />Скопировать</button>
+                  </div>
                 </div>
-                <div className="mt-3 rounded-lg bg-white/[0.08] p-4">
-                  <p className="text-xs text-white/55">Быстрые действия</p>
+                <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.06] p-4">
+                  <p className="text-sm font-semibold">Быстрые действия</p>
                   <div className="mt-3 grid gap-2">
-                    <Action icon={<Copy size={16} />} label="Копировать ссылку" onClick={shareStore} />
-                    <Action icon={<Megaphone size={16} />} label="Сгенерировать сторис" onClick={() => showToast("AI готовит сторис-картинку товара")} />
-                    <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold">
+                    <Action icon={<Sparkles size={16} />} label="Улучшить витрину с AI" onClick={createAIProduct} />
+                    <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
                       <ImagePlus size={16} />Добавить фото
                       <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => event.target.files?.[0] && uploadImage(event.target.files[0])} />
                     </label>
@@ -170,99 +235,87 @@ export function SellerDashboard() {
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold">Новые заказы</h2>
-                <p className="text-xs text-neutral-500">CRM для обработки заявок</p>
+                <h2 className="text-base font-semibold">Последние заказы</h2>
+                <p className="text-xs text-neutral-500">Карточки вместо сухой таблицы</p>
               </div>
-              <Badge tone="green">{orders.length} всего</Badge>
+              <Badge tone="green">{orders.length || 0} всего</Badge>
             </div>
             <div className="mt-4 space-y-3">
-              {orders.length === 0 ? <EmptyState title="Заказов пока нет" text="Откройте публичную витрину и оформите тестовый заказ." /> : orders.map((order) => (
-                <div key={order.id} className="rounded-lg border border-line p-3 transition hover:-translate-y-0.5 hover:shadow-soft">
+              {loading ? <Skeleton className="h-44" /> : orders.length === 0 ? (
+                <EmptyState
+                  title="Поделитесь магазином, чтобы получить первый заказ"
+                  text="Скопируйте ссылку и отправьте ее клиентам в Telegram, WhatsApp или Instagram."
+                  action={<Button onClick={shareStore} variant="secondary"><Share2 size={16} />Поделиться ссылкой</Button>}
+                />
+              ) : orders.slice(0, 4).map((order) => (
+                <article key={order.id} className="rounded-lg border border-line bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-premium">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{order.customer_name}</p>
-                    <Badge tone="green">{order.status}</Badge>
+                    <Badge tone={order.status === "new" ? "green" : "blue"}>{order.status}</Badge>
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">{order.customer_phone}</p>
-                  <p className="mt-3 text-lg font-semibold">{money(order.total_amount)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <Sparkles size={18} className="text-berry" />
-              <h2 className="text-base font-semibold">AI-помощник в интерфейсе</h2>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">Быстрые улучшения текстов, карточек и постов без отдельной страницы.</p>
-            <div className="mt-4"><AIActions /></div>
-          </Card>
-          <Card className="p-4">
-            <h2 className="text-base font-semibold">Что сделать дальше</h2>
-            <div className="mt-4 space-y-2">
-              {tips.map((tip, index) => (
-                <button key={tip} className="flex w-full items-center justify-between rounded-md border border-line bg-white p-3 text-left text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-soft">
-                  <span>{tip}</span>
-                  <Badge tone={index === 0 ? "red" : "blue"}>AI</Badge>
-                </button>
-              ))}
-            </div>
-          </Card>
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
-          <Card className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold">Каталог</h2>
-                <p className="text-xs text-neutral-500">Mobile-first добавление товара и фото</p>
-              </div>
-              <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI товар</Button>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {products.map((product) => (
-                <article key={product.id || product.title} className="rounded-lg border border-line bg-paper p-3 transition hover:-translate-y-0.5 hover:shadow-soft">
-                  <p className="text-sm font-semibold">{product.title}</p>
-                  <p className="mt-1 min-h-10 text-xs leading-5 text-neutral-500">{product.short_description || product.description}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold">{money(product.price)}</p>
-                    <Badge tone={(product.stock_quantity || 0) <= 5 ? "red" : "neutral"}>{product.stock_quantity || 0} шт</Badge>
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-xl font-semibold">{money(order.total_amount)}</p>
+                    <button className="grid h-9 w-9 place-items-center rounded-md bg-paper text-sea" title="Открыть заказ"><ArrowUpRight size={16} /></button>
                   </div>
                 </article>
               ))}
             </div>
           </Card>
+        </section>
 
-          <Card className="p-4">
-            <h2 className="text-base font-semibold">Telegram статус</h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">После подключения продавец получает новые заказы, оплату и дневную статистику.</p>
-            <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full"><MessageCircle size={17} />Подключить Telegram</Button>
-            <p className="mt-3 break-all rounded-md bg-paper p-3 text-sm">{telegram}</p>
+        <section className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+          <Card className="p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-lg bg-berry/10 text-berry"><Bot size={20} /></span>
+              <div>
+                <h2 className="text-xl font-semibold">AI подсказывает, как получить больше заказов</h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-600">Следующий лучший шаг: показать 3 товара, добавить доверие и отправить ссылку в Telegram.</p>
+              </div>
+            </div>
+            <div className="mt-5 rounded-lg bg-paper p-4 text-sm leading-6 text-neutral-700">
+              {aiText || "Добавьте подарочный набор или популярный товар в hero, включите отзывы и сделайте CTA “Заказать в Telegram” первым действием на мобильном."}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={createAIProduct}><Sparkles size={17} />Получить рекомендацию</Button>
+              <Button variant="secondary" onClick={shareStore}><Send size={17} />Отправить ссылку</Button>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Товары</h2>
+                <p className="mt-1 text-sm text-neutral-500">Добавьте первый товар и начните принимать заказы</p>
+              </div>
+              <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI товар</Button>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {products.length === 0 ? (
+                <div className="md:col-span-3">
+                  <EmptyState title="Добавьте первый товар и начните принимать заказы" text="AI подготовит название, описание, цену и карточку для витрины." action={<Button onClick={createAIProduct}>Создать товар с AI</Button>} />
+                </div>
+              ) : products.slice(0, 3).map((product, index) => (
+                <ProductCard key={product.id || product.title} product={product} image={product.images?.[0] || demoProducts[index]?.images?.[0]} accent="#92385F" />
+              ))}
+            </div>
           </Card>
         </section>
+
+        <Card className="p-4 md:hidden">
+          <h2 className="text-base font-semibold">Telegram статус</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-600">{telegram === "connected" ? "Уведомления активны" : "Подключите Telegram, чтобы получать заказы быстрее."}</p>
+          <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full"><MessageCircle size={17} />Подключить Telegram</Button>
+        </Card>
       </section>
-      <nav className="fixed bottom-3 left-1/2 z-30 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 justify-between rounded-lg border border-line bg-white/95 p-2 shadow-soft backdrop-blur md:hidden">
-        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><StoreIcon size={18} className="mx-auto" />Магазин</button>
+
+      <nav className="fixed bottom-3 left-1/2 z-30 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 justify-between rounded-lg border border-line bg-white/95 p-2 shadow-premium backdrop-blur md:hidden">
+        <button className="grid gap-1 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white"><TrendingUp size={18} className="mx-auto" />Обзор</button>
         <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Boxes size={18} className="mx-auto" />Товары</button>
-        <button className="grid gap-1 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white"><Sparkles size={18} className="mx-auto" />Продажи</button>
-        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><PhoneCall size={18} className="mx-auto" />Клиенты</button>
+        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><PackageCheck size={18} className="mx-auto" />Заказы</button>
+        <button className="grid gap-1 rounded-md px-3 py-2 text-xs font-semibold"><Sparkles size={18} className="mx-auto" />AI</button>
       </nav>
     </main>
-  );
-}
-
-function Metric({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint: string }) {
-  return (
-    <Card className="p-4 transition hover:-translate-y-0.5 hover:shadow-soft">
-      <div className="flex items-center justify-between">
-        <span className="grid h-9 w-9 place-items-center rounded-md bg-paper text-sea">{icon}</span>
-        <span className="text-xs font-semibold text-mint">{hint}</span>
-      </div>
-      <p className="mt-4 text-xs text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </Card>
   );
 }
 
