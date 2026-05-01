@@ -67,6 +67,12 @@ docker compose --env-file deployments/env/prod.env -f deployments/docker-compose
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -s reload
 ```
 
+One-command flow (recommended):
+
+```bash
+make prod-ready
+```
+
 Pipeline-friendly one-liner:
 
 ```bash

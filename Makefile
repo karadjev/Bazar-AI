@@ -4,7 +4,7 @@ PROD_ENV_GUARD=env -u JWT_SECRET -u POSTGRES_PASSWORD -u MINIO_ROOT_PASSWORD -u 
 STAGING_COMPOSE=$(STAGING_ENV_GUARD) docker compose --env-file deployments/env/staging.env -f deployments/docker-compose.staging.yml
 PROD_COMPOSE=$(PROD_ENV_GUARD) docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml
 
-.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload prod-preflight staging-preflight prod-autofix-env staging-autofix-env ssl-dummy ssl-init ssl-renew npm-verbose api web
+.PHONY: env-init install up down restart logs ps build migrate seed test lint staging-up prod-up prod-deploy prod-down prod-logs prod-ps prod-nginx-validate prod-nginx-reload prod-preflight staging-preflight prod-autofix-env staging-autofix-env prod-smoke prod-ready ssl-dummy ssl-init ssl-renew npm-verbose api web
 
 env-init:
 	cp -n deployments/env/dev.env.example deployments/env/dev.env || true
@@ -83,6 +83,22 @@ prod-nginx-validate:
 
 prod-nginx-reload: prod-nginx-validate
 	$(PROD_COMPOSE) exec -T nginx nginx -s reload
+
+prod-smoke:
+	@echo "== nginx-health =="
+	@curl -fsS http://127.0.0.1/nginx-health && echo
+	@echo "== api health via edge =="
+	@curl -fsS http://127.0.0.1/health && echo
+	@echo "== dashboard analytics via edge =="
+	@curl -fsS "http://127.0.0.1/api/dashboard/analytics?guest=1" && echo
+	@echo "== root response =="
+	@curl -fsSI http://127.0.0.1/ | sed -n '1,6p'
+
+prod-ready:
+	$(MAKE) prod-autofix-env
+	$(MAKE) prod-preflight
+	$(MAKE) prod-deploy
+	$(MAKE) prod-smoke
 
 ssl-dummy:
 	DOMAIN=$$(grep '^APP_DOMAIN=' deployments/env/prod.env | cut -d= -f2); docker run --rm -v bazar-ai-prod_letsencrypt:/etc/letsencrypt alpine:3.22 sh -c "apk add --no-cache openssl >/dev/null && mkdir -p /etc/letsencrypt/live/$$DOMAIN && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout /etc/letsencrypt/live/$$DOMAIN/privkey.pem -out /etc/letsencrypt/live/$$DOMAIN/fullchain.pem -subj '/CN=$$DOMAIN'"
