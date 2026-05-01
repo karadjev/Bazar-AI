@@ -53,6 +53,8 @@ export function SellerDashboard() {
   const [authPassword, setAuthPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authName, setAuthName] = useState("");
+  const [leadQuery, setLeadQuery] = useState("");
+  const [leadFilter, setLeadFilter] = useState<"all" | "new" | "contacted" | "closed">("all");
 
   useEffect(() => {
     async function load() {
@@ -79,10 +81,10 @@ export function SellerDashboard() {
 
         const status = guestSession ? { status: "not_connected" } : await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`).catch(() => ({ status: "not_connected" }));
         setTelegram(status.status);
-      } catch {
+      } catch (err) {
         setLeads([{ id: "LEAD-DEMO", store_id: "demo_store", customer_name: "Амина", phone: "+7 900 111-22-33", status: "new", message: "Хочу оформить заказ" }]);
         setAnalytics({ stores: 1, leads: 1, orders: 0, gmv: 0 });
-        setError("Показываем демо-данные. Войдите или создайте магазин, чтобы подключить реальные заказы.");
+        setError(normalizeError(err, "Показываем демо-данные. Войдите или создайте магазин, чтобы подключить реальные заказы."));
       } finally {
         setLoading(false);
       }
@@ -113,6 +115,15 @@ export function SellerDashboard() {
   const newOrders = analytics.orders || leads.filter((lead) => lead.status === "new").length || leads.length;
   const views = Math.max(1248, products.length * 217 + (analytics.leads || leads.length) * 83);
   const conversion = views > 0 ? ((newOrders / views) * 100).toFixed(1) : "0.0";
+  const filteredLeads = useMemo(() => {
+    const q = leadQuery.trim().toLowerCase();
+    return leads.filter((lead) => {
+      const statusOk = leadFilter === "all" || lead.status === leadFilter;
+      if (!statusOk) return false;
+      if (!q) return true;
+      return lead.customer_name.toLowerCase().includes(q) || lead.phone.toLowerCase().includes(q) || lead.message.toLowerCase().includes(q);
+    });
+  }, [leadFilter, leadQuery, leads]);
 
   async function createAIProduct() {
     try {
@@ -219,7 +230,7 @@ export function SellerDashboard() {
       setEditingProduct(null);
       showToast("Товар обновлен");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Не удалось обновить товар");
+      showToast(normalizeError(err, "Не удалось обновить товар"));
     } finally {
       setSaving(false);
     }
@@ -236,7 +247,7 @@ export function SellerDashboard() {
       setProducts((prev) => prev.filter((item) => item.id !== product.id));
       showToast("Товар удален");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Не удалось удалить товар");
+      showToast(normalizeError(err, "Не удалось удалить товар"));
     }
   }
 
@@ -256,7 +267,7 @@ export function SellerDashboard() {
       showToast("Аккаунт подключен");
       location.reload();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Не удалось подключить аккаунт");
+      showToast(normalizeError(err, "Не удалось подключить аккаунт"));
     } finally {
       setAuthLoading(false);
     }
@@ -423,9 +434,29 @@ export function SellerDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold">Заявки клиентов</h2>
-                <p className="text-xs text-neutral-500">Список обращений и сумма заказа</p>
+                <p className="text-xs text-neutral-500">Список обращений и сумма заказа. Статусы обновляются backend-процессом.</p>
               </div>
-              <Badge tone="green">{leads.length || 0} всего</Badge>
+              <Badge tone="green">{filteredLeads.length} из {leads.length}</Badge>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+              <Input value={leadQuery} placeholder="Поиск по клиенту, телефону или тексту" onChange={(event) => setLeadQuery(event.target.value)} />
+              <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-xs font-semibold">
+                {[
+                  { key: "all", label: "Все" },
+                  { key: "new", label: "Новые" },
+                  { key: "contacted", label: "В работе" },
+                  { key: "closed", label: "Закрытые" }
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setLeadFilter(item.key as "all" | "new" | "contacted" | "closed")}
+                    className={`rounded-md px-2.5 py-1 ${leadFilter === item.key ? "bg-white shadow-sm" : "text-neutral-500"}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="mt-4 space-y-3">
               {loading ? <Skeleton className="h-44" /> : leads.length === 0 ? (
@@ -433,6 +464,12 @@ export function SellerDashboard() {
                   title="Поделитесь магазином, чтобы получить первый заказ"
                   text="Скопируйте ссылку и отправьте ее клиентам в Telegram, WhatsApp или Instagram."
                   action={<Button onClick={shareStore} variant="secondary"><Share2 size={16} />Поделиться ссылкой</Button>}
+                />
+              ) : filteredLeads.length === 0 ? (
+                <EmptyState
+                  title="По этим фильтрам заявок нет"
+                  text="Сбросьте поиск или выберите другой статус."
+                  action={<Button onClick={() => { setLeadQuery(""); setLeadFilter("all"); }} variant="secondary">Сбросить фильтры</Button>}
                 />
               ) : (
                 <div className="overflow-hidden rounded-xl border border-line">
@@ -446,11 +483,11 @@ export function SellerDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {leads.slice(0, 6).map((lead) => (
+                      {filteredLeads.slice(0, 8).map((lead) => (
                         <tr key={lead.id} className="border-t border-line bg-white">
                           <td className="px-3 py-2 font-semibold">{lead.customer_name}</td>
                           <td className="px-3 py-2 text-xs text-neutral-500">{lead.phone}</td>
-                          <td className="px-3 py-2"><Badge tone={lead.status === "new" ? "green" : "blue"}>{lead.status}</Badge></td>
+                          <td className="px-3 py-2"><Badge tone={leadBadgeTone(lead.status)}>{leadStatusLabel(lead.status)}</Badge></td>
                           <td className="px-3 py-2 text-right font-semibold">{money(290000)}</td>
                         </tr>
                       ))}
@@ -552,4 +589,27 @@ export function SellerDashboard() {
 
 function Action({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return <button onClick={onClick} className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">{icon}{label}</button>;
+}
+
+function leadStatusLabel(status: string) {
+  if (status === "new") return "Новая";
+  if (status === "contacted") return "В работе";
+  if (status === "closed") return "Закрыта";
+  return status;
+}
+
+function leadBadgeTone(status: string): "green" | "blue" | "dark" {
+  if (status === "new") return "green";
+  if (status === "closed") return "dark";
+  return "blue";
+}
+
+function normalizeError(error: unknown, fallback: string) {
+  if (!(error instanceof Error) || !error.message) return fallback;
+  const message = error.message.toLowerCase();
+  if (message.includes("validation_error")) return "Проверьте поля формы и повторите";
+  if (message.includes("unauthorized") || message.includes("forbidden")) return "Нужен вход в аккаунт для этого действия";
+  if (message.includes("not found")) return "Данные не найдены или уже удалены";
+  if (message.includes("request failed")) return fallback;
+  return error.message;
 }
