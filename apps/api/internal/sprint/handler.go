@@ -3,6 +3,7 @@ package sprint
 import (
 	"net/http"
 	"sort"
+	"strings"
 
 	"bazar-ai/apps/api/internal/platform"
 	"bazar-ai/apps/api/pkg/httpx"
@@ -45,6 +46,21 @@ func (h Handler) CreateStore(w http.ResponseWriter, r *http.Request) {
 	if err := validator.Length(req.Name, "name", 2, 80); err != nil {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
 		return
+	}
+	if req.Region == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "region is required")
+		return
+	}
+	if err := validator.Length(req.Region, "region", 2, 80); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
+		return
+	}
+	if req.Contacts.Phone == "" && req.Contacts.WhatsApp == "" && req.Contacts.Telegram == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "at least one contact is required")
+		return
+	}
+	if req.Contacts.Telegram != "" && !strings.HasPrefix(req.Contacts.Telegram, "@") {
+		req.Contacts.Telegram = "@" + req.Contacts.Telegram
 	}
 	ownerID := resolveOwnerID(r)
 	if ownerID == "" {
@@ -181,6 +197,10 @@ func (h Handler) CreateLead(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
+	if digitsOnly(phone) < 7 {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "phone is invalid")
+		return
+	}
 	lead, err := h.repo.CreateLead(r.Context(), platform.Lead{
 		StoreID:      store.ID,
 		CustomerName: name,
@@ -193,4 +213,14 @@ func (h Handler) CreateLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, lead)
+}
+
+func digitsOnly(value string) int {
+	count := 0
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			count++
+		}
+	}
+	return count
 }

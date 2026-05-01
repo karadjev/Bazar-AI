@@ -47,6 +47,15 @@ export type Order = {
   items?: Array<{ product_id?: string; title: string; quantity: number; price: number; total?: number }>;
 };
 
+export type AuthUser = {
+  id: string;
+  email?: string;
+  phone?: string;
+  name?: string;
+  role: string;
+  status: string;
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export const demoProducts: Product[] = [
@@ -132,6 +141,10 @@ export async function registerDemo(email: string, password: string) {
   });
   setSession(result.access_token, result.refresh_token);
   return result;
+}
+
+export async function authMe() {
+  return api<{ user: AuthUser }>("/api/v1/auth/me");
 }
 
 export async function createStoreOnboarding(input: {

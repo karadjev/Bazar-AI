@@ -163,6 +163,20 @@ func (h Handler) LogoutAll(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, map[string]string{"status": "logged_out"})
 }
 
+func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
+	user := UserFromRequest(r)
+	if user.ID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusUnauthorized, "unauthorized", "missing token")
+		return
+	}
+	fullUser, err := h.repo.UserByID(r.Context(), user.ID)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"user": fullUser})
+}
+
 func (h Handler) AnyAuthenticated() func(http.Handler) http.Handler {
 	return h.Middleware("owner", "admin", "manager", "support")
 }

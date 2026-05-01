@@ -70,6 +70,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	mux.HandleFunc("POST /api/v1/auth/refresh", authHandler.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", authHandler.Logout)
+	mux.Handle("GET /api/v1/auth/me", authHandler.AnyAuthenticated()(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /api/v1/auth/logout-all", authHandler.AnyAuthenticated()(http.HandlerFunc(authHandler.LogoutAll)))
 
 	mux.Handle("POST /api/v1/onboarding/complete", owner(http.HandlerFunc(onboardingHandler.Complete)))
