@@ -27,7 +27,7 @@ import {
   Wand2,
   type LucideIcon
 } from "lucide-react";
-import { api, createStoreOnboarding, registerDemo, setSession, Store } from "@/lib/api";
+import { clearSession, createStoreOnboarding, Store } from "@/lib/api";
 import { setGuestMode } from "@/lib/auth";
 import { Badge, Button, Field, Stepper, Toast } from "@/components/ui-kit";
 import { storefrontThemes, themeByNiche } from "@/lib/themes";
@@ -89,21 +89,21 @@ export function OnboardingFlow() {
     setGenerationIndex(0);
     await new Promise((resolve) => setTimeout(resolve, 2300));
     try {
-      await registerDemo(form.email, form.password).catch(async () => {
-        const login = await api<{ access_token: string; refresh_token: string }>("/api/v1/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ login: form.email, password: form.password })
-        });
-        setSession(login.access_token, login.refresh_token);
-      });
-      const result = await createStoreOnboarding({
+      const input = {
         niche: form.niche,
         name: form.name,
         region: form.region,
         city: form.city,
         style: form.style,
         contacts: { phone: form.phone, whatsapp: form.whatsapp, telegram: form.telegram }
-      });
+      };
+      let result: { store: Store; guest_mode?: boolean };
+      try {
+        result = await createStoreOnboarding(input);
+      } catch {
+        clearSession();
+        result = await createStoreOnboarding(input);
+      }
       setStore(result.store);
       setGuestMode(Boolean(result.guest_mode));
     } catch {

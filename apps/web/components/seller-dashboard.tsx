@@ -21,7 +21,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { api, clearSession, dashboardLeads, dashboardStores, demoProducts, demoStore, Lead, money, Product, Store } from "@/lib/api";
+import { api, clearSession, dashboardLeads, dashboardStores, demoProducts, demoStore, getToken, Lead, money, Product, Store } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
 import { Badge, Button, Card, EmptyState, MetricCard, ProductCard, Skeleton, Toast } from "@/components/ui-kit";
 
@@ -49,22 +49,23 @@ export function SellerDashboard() {
       setLoading(true);
       setError("");
       try {
-        const storesResponse = await api<ListResponse<Store>>("/api/v1/stores/me");
         const modernStores = await dashboardStores().catch(() => null);
+        const legacyStores = modernStores?.data?.length ? null : await api<ListResponse<Store>>("/api/v1/stores/me").catch(() => null);
         const stores = modernStores?.data?.length
           ? modernStores.data
-          : (Array.isArray(storesResponse) ? storesResponse : storesResponse.data || []);
+          : (legacyStores ? (Array.isArray(legacyStores) ? legacyStores : legacyStores.data || []) : []);
         const current = stores[0] || demoStore;
         setStore(current);
+        const guestSession = !getToken();
 
-        const productsResponse = await api<ListResponse<Product>>(`/api/v1/stores/${current.id}/products`);
-        const loadedProducts = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
+        const productsResponse = guestSession ? null : await api<ListResponse<Product>>(`/api/v1/stores/${current.id}/products`).catch(() => null);
+        const loadedProducts = productsResponse ? (Array.isArray(productsResponse) ? productsResponse : productsResponse.data || []) : [];
         setProducts(loadedProducts.length ? loadedProducts : demoProducts);
 
         const loadedLeads = await dashboardLeads().catch(() => ({ data: [] as Lead[] }));
         setLeads(loadedLeads.data || []);
 
-        const status = await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`);
+        const status = guestSession ? { status: "not_connected" } : await api<{ status: string }>(`/api/v1/stores/${current.id}/telegram/status`).catch(() => ({ status: "not_connected" }));
         setTelegram(status.status);
       } catch {
         setLeads([{ id: "LEAD-DEMO", store_id: "demo_store", customer_name: "Амина", phone: "+7 900 111-22-33", status: "new", message: "Хочу оформить заказ" }]);

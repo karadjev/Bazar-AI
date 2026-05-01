@@ -582,7 +582,7 @@ function getThemeProducts(theme: StoreTheme): Product[] {
   if (theme.code === "perfume-luxury") {
     return [
       product("demo_oud_1", "Oud Classic 50ml", "Теплый восточный аромат в подарочной упаковке.", 450000, "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=900&q=80"),
-      product("demo_oud_2", "Amber Musk Set", "Набор для подарка с мягким янтарным шлейфом.", 720000, "https://images.unsplash.com/photo-1615634262417-c604b9ab7837?auto=format&fit=crop&w=900&q=80"),
+      product("demo_oud_2", "Amber Musk Set", "Набор для подарка с мягким янтарным шлейфом.", 720000, "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=900&q=80"),
       product("demo_oud_3", "Private Scent Box", "Подбор трех ароматов под событие и настроение.", 990000, "https://images.unsplash.com/photo-1619994403073-2cec844b8e63?auto=format&fit=crop&w=900&q=80")
     ];
   }
