@@ -26,6 +26,9 @@ services:
     image: node:24.15.0-alpine
     working_dir: /app
     command: sh -c "npm install && npm run dev"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:8080}
@@ -51,6 +54,7 @@ services:
       APP_ENV: development
       API_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER:-bazar}:${POSTGRES_PASSWORD:-bazar_dev}@postgres:5432/${POSTGRES_DB:-bazar_ai}?sslmode=disable
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-dev-change-me}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
@@ -76,9 +80,12 @@ services:
         condition: service_healthy
     expose:
       - "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
     volumes:
       - api_uploads:/app/uploads
     networks:
+      - public
       - internal
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep ok"]

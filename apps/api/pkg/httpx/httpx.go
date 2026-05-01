@@ -80,8 +80,14 @@ func codeForStatus(status int) string {
 		return "forbidden"
 	case http.StatusNotFound:
 		return "not_found"
+	case http.StatusConflict:
+		return "conflict"
+	case http.StatusPaymentRequired:
+		return "quota_exceeded"
 	case http.StatusTooManyRequests:
 		return "rate_limited"
+	case http.StatusBadGateway:
+		return "upstream_error"
 	default:
 		if status >= 500 {
 			return "internal_error"

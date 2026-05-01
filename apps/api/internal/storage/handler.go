@@ -45,12 +45,12 @@ func NewMinIOHandler(repo *platform.Repository, dir, baseURL, endpoint, accessKe
 func (h Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "image is too large")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "image is too large")
 		return
 	}
 	file, header, err := r.FormFile("image")
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "image file is required")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "image file is required")
 		return
 	}
 	defer file.Close()
@@ -59,26 +59,26 @@ func (h Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 	mime := http.DetectContentType(head[:n])
 	ext, err := imageExt(mime)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "unsupported image MIME type")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "unsupported image MIME type")
 		return
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "could not read image")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not read image")
 		return
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "could not read image")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not read image")
 		return
 	}
 	if int64(len(content)) > maxUploadSize {
-		httpx.Error(w, http.StatusBadRequest, "image is too large")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "image is too large")
 		return
 	}
 	name := randomName() + ext
 	url, err := h.save(r.Context(), name, content, mime)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "could not save image")
+		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not save image")
 		return
 	}
 	productID := r.PathValue("id")

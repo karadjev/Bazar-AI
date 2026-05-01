@@ -60,7 +60,7 @@ cp deployments/env/prod.env.example deployments/env/prod.env
 - `APP_DOMAIN`
 - `LETSENCRYPT_EMAIL`
 - `POSTGRES_PASSWORD`
-- `JWT_SECRET`
+- `JWT_SECRET` (real random value, at least 32 characters)
 - `MINIO_ROOT_PASSWORD`
 - AI and Telegram secrets
 

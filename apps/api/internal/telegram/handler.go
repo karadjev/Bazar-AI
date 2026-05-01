@@ -24,7 +24,7 @@ func (h Handler) ConnectCode(w http.ResponseWriter, r *http.Request) {
 	storeID := r.PathValue("storeID")
 	connection, err := h.repo.CreateTelegramConnectCode(r.Context(), user.ID, storeID)
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "could not create telegram connect code")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create telegram connect code")
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{
@@ -46,7 +46,7 @@ func (h Handler) Status(w http.ResponseWriter, r *http.Request) {
 func (h Handler) Test(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreByID(r.Context(), r.PathValue("storeID"))
 	if err != nil {
-		httpx.Error(w, http.StatusNotFound, "store not found")
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
 		return
 	}
 	order := platform.Order{
@@ -55,7 +55,7 @@ func (h Handler) Test(w http.ResponseWriter, r *http.Request) {
 		TotalAmount: 100000,
 	}
 	if err := h.notifier.SendOrder(r.Context(), store, order, "https://bazar.ai/dashboard/orders/test"); err != nil {
-		httpx.Error(w, http.StatusBadGateway, "telegram test failed")
+		httpx.ErrorWithRequest(w, r, http.StatusBadGateway, "upstream_error", "telegram test failed")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]string{"status": "sent"})
@@ -74,7 +74,7 @@ func (h Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 		} `json:"message"`
 	}
 	if err := httpx.Decode(r, &update); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid telegram update")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid telegram update")
 		return
 	}
 	parts := strings.Fields(update.Message.Text)
@@ -84,7 +84,7 @@ func (h Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 			telegramID = fmt.Sprintf("%d", update.Message.From.ID)
 		}
 		if _, err := h.repo.BindTelegramCode(r.Context(), parts[1], telegramID); err != nil {
-			httpx.Error(w, http.StatusNotFound, "connect code expired or invalid")
+			httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "connect code expired or invalid")
 			return
 		}
 		httpx.JSON(w, http.StatusOK, map[string]string{"status": "connected"})

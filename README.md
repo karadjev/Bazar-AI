@@ -81,6 +81,10 @@ STORAGE_ACCESS_KEY=bazar
 STORAGE_SECRET_KEY=bazar_dev_password
 ```
 
+Для `APP_ENV=staging` и `APP_ENV=production` API завершится с ошибкой на старте, если не заданы критичные переменные: `DATABASE_URL`, `JWT_SECRET`, `PUBLIC_APP_URL`, `UPLOAD_BASE_URL`. `JWT_SECRET` должен быть реальным секретом длиной минимум 32 символа, а `ALLOWED_ORIGINS=*` в этих окружениях запрещен.
+
+API отдает Prometheus-compatible счетчики ответов на `/metrics`: `bazar_api_http_responses_total` с лейблами `method`, `endpoint`, `status`, `status_class`.
+
 ## Demo Flow
 
 1. `make up`

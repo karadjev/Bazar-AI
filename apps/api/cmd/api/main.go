@@ -25,7 +25,10 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -53,11 +56,13 @@ func main() {
 
 	owner := authHandler.Middleware("owner", "admin", "manager")
 	adminOnly := authHandler.Middleware("admin")
+	statusMetrics := middleware.NewStatusMetrics()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "bazar-ai-api"})
 	})
+	mux.Handle("GET /metrics", statusMetrics.Handler())
 
 	mux.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
@@ -95,7 +100,7 @@ func main() {
 
 	mux.Handle("GET /api/v1/admin/stats", adminOnly(http.HandlerFunc(adminHandler.Stats)))
 
-	handler := middleware.StructuredLogger(middleware.RequestID(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins))))
+	handler := middleware.StructuredLogger(middleware.RequestID(statusMetrics.Middleware(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins)))))
 	server := &http.Server{Addr: cfg.APIAddr, Handler: handler}
 	log.Printf("Bazar AI API listening on %s (%s)", cfg.APIAddr, cfg.AppEnv)
 	log.Fatal(server.ListenAndServe())

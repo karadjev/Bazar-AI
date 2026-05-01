@@ -205,7 +205,7 @@ func UserFromRequest(r *http.Request) platform.User {
 func (h Handler) issueTokenPair(w http.ResponseWriter, r *http.Request, user platform.User) {
 	access, err := h.accessToken(user)
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "could not issue token")
+		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not issue token")
 		return
 	}
 	refresh := randomToken()

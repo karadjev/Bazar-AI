@@ -27,7 +27,7 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 		Contacts platform.Contacts `json:"contacts"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid onboarding payload")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid onboarding payload")
 		return
 	}
 	if req.Name == "" {
@@ -36,7 +36,7 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 	user := auth.UserFromRequest(r)
 	count, err := h.repo.StoreCountByOwner(r.Context(), user.ID)
 	if err == nil && count >= platform.DefaultFreeLimits().StoreLimit {
-		httpx.Error(w, http.StatusPaymentRequired, "free tariff allows only one store")
+		httpx.ErrorWithRequest(w, r, http.StatusPaymentRequired, "quota_exceeded", "free tariff allows only one store")
 		return
 	}
 	store, err := h.repo.CreateStore(r.Context(), platform.Store{
@@ -44,7 +44,7 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 		Region: req.Region, City: req.City, Currency: "RUB", Theme: req.Style, Contacts: req.Contacts,
 	})
 	if err != nil {
-		httpx.Error(w, http.StatusBadRequest, "could not create store")
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")
 		return
 	}
 	_, _ = h.repo.AddGeneration(r.Context(), platform.AIGeneration{
