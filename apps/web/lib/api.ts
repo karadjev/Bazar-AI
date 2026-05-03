@@ -33,8 +33,10 @@ export type Lead = {
   customer_name: string;
   phone: string;
   message: string;
+  manager_comment?: string;
   status: string;
   created_at?: string;
+  status_history?: Array<{ id: string; lead_id: string; from_status: string; to_status: string; created_at: string }>;
 };
 
 export type Order = {
@@ -193,10 +195,26 @@ export async function updateDashboardLeadStatus(leadId: string, status: "new" | 
   });
 }
 
-export async function dashboardAnalytics() {
+export async function dashboardAnalytics(period: 7 | 30 | 90 = 7) {
   const token = getToken();
   const guest = !token ? "?guest=1" : "";
-  return api<{ data: { stores: number; leads: number; orders: number; gmv: number } }>(`/api/dashboard/analytics${guest}`);
+  const sep = guest ? "&" : "?";
+  return api<{ data: { stores: number; leads: number; orders: number; gmv: number; period: number; series?: Array<{ date: string; leads: number; orders: number; gmv: number }> } }>(`/api/dashboard/analytics${guest}${sep}period=${period}`);
+}
+
+export async function dashboardLeadDetails(leadId: string) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}${guest}`);
+}
+
+export async function updateDashboardLeadComment(leadId: string, comment: string) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}/comment${guest}`, {
+    method: "PATCH",
+    body: JSON.stringify({ comment })
+  });
 }
 
 export async function publicStore(slug: string) {
