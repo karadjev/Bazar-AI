@@ -74,7 +74,7 @@ func (h Handler) PublicStore(w http.ResponseWriter, r *http.Request) {
 		"store":    store,
 		"products": products,
 		"seo": map[string]string{
-			"title":       store.Name + " - магазин на Bazar AI",
+			"title":       store.Name + " — магазин на BuildYourStore.ai",
 			"description": store.Description,
 		},
 	})

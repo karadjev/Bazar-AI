@@ -28,7 +28,7 @@ func (s Service) Generate(ctx context.Context, task, input string) (string, stri
 	payload := map[string]any{
 		"model": s.model,
 		"messages": []map[string]string{
-			{"role": "system", "content": "Ты AI-помощник SaaS Bazar AI. Пиши коротко, продающе и по-русски для малого бизнеса на Кавказе."},
+			{"role": "system", "content": "Ты AI-помощник SaaS BuildYourStore.ai (кодовое имя Bazar AI). Пиши коротко, продающе и по-русски для малого бизнеса на Кавказе."},
 			{"role": "user", "content": prompt(task, input)},
 		},
 	}

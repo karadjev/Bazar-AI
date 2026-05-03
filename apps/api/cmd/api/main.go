@@ -15,9 +15,9 @@ import (
 	"bazar-ai/apps/api/internal/orders"
 	"bazar-ai/apps/api/internal/platform"
 	"bazar-ai/apps/api/internal/products"
+	"bazar-ai/apps/api/internal/sprint"
 	"bazar-ai/apps/api/internal/storage"
 	"bazar-ai/apps/api/internal/stores"
-	"bazar-ai/apps/api/internal/sprint"
 	"bazar-ai/apps/api/internal/telegram"
 	"bazar-ai/apps/api/pkg/config"
 	"bazar-ai/apps/api/pkg/database"
@@ -108,14 +108,16 @@ func main() {
 	mux.HandleFunc("POST /api/onboarding/create-store", sprintHandler.CreateStore)
 	mux.HandleFunc("GET /api/dashboard/stores", sprintHandler.DashboardStores)
 	mux.HandleFunc("GET /api/dashboard/leads", sprintHandler.DashboardLeads)
+	mux.HandleFunc("GET /api/dashboard/leads/{id}", sprintHandler.LeadDetails)
 	mux.HandleFunc("PATCH /api/dashboard/leads/{id}", sprintHandler.UpdateLeadStatus)
+	mux.HandleFunc("PATCH /api/dashboard/leads/{id}/comment", sprintHandler.UpdateLeadComment)
 	mux.HandleFunc("GET /api/dashboard/analytics", sprintHandler.DashboardAnalytics)
 	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
 	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)
 
 	handler := middleware.StructuredLogger(middleware.RequestID(statusMetrics.Middleware(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins)))))
 	server := &http.Server{Addr: cfg.APIAddr, Handler: handler}
-	log.Printf("Bazar AI API listening on %s (%s)", cfg.APIAddr, cfg.AppEnv)
+	log.Printf("BuildYourStore.ai API listening on %s (%s)", cfg.APIAddr, cfg.AppEnv)
 	log.Fatal(server.ListenAndServe())
 }
 
