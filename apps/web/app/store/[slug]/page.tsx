@@ -125,7 +125,7 @@ export default function PublicStorePage() {
   }
 
   return (
-    <main className="min-h-screen pb-24 md:pb-0" style={{ ...themeStyle, background: theme.bg, color: theme.text }}>
+    <main className="min-h-screen pb-24 md:pb-0" data-testid="page-store" style={{ ...themeStyle, background: theme.bg, color: theme.text }}>
       {toast && <Toast>{toast}</Toast>}
       <StoreHeader store={store} theme={theme} totalCount={totalCount} onCopy={copyLink} whatsapp={whatsapp} />
       <div className="sticky top-[69px] z-20 border-b backdrop-blur-xl" style={{ background: isDark ? "rgba(20,20,20,0.78)" : "rgba(255,255,255,0.88)", borderColor: borderColor(isDark) }}>
@@ -136,7 +136,7 @@ export default function PublicStorePage() {
             ["Отзывы", "#reviews"],
             ["Заказ", "#checkout"]
           ].map(([label, href]) => (
-            <a key={label} href={href} className="rounded-md px-3 py-1.5" style={{ background: isDark ? "rgba(255,255,255,0.08)" : "#F5F7FB" }}>
+            <a key={label} href={href} className="rounded-xl px-3 py-1.5 transition duration-200 hover:opacity-90" style={{ background: isDark ? "rgba(255,255,255,0.08)" : "#F5F7FB" }}>
               {label}
             </a>
           ))}
@@ -154,13 +154,13 @@ export default function PublicStorePage() {
               <span className="rounded-md px-3 py-1 text-xs font-semibold text-ink" style={{ background: theme.accent }}>{experience.eyebrow}</span>
               <span className="rounded-md bg-white/14 px-3 py-1 text-xs font-semibold backdrop-blur">{store.city || "Магас"} · заказ сегодня</span>
             </div>
-            <h1 className="mt-5 text-5xl font-semibold leading-[0.95] text-balance md:text-7xl">{store.name}</h1>
+            <h1 className="mt-5 text-5xl font-semibold leading-[0.95] text-balance tracking-tight md:text-7xl">{store.name}</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-white/76 md:text-lg">{store.description || experience.subhead}</p>
             <div className="mt-8 flex flex-wrap gap-2">
-              <a href="#catalog" className="inline-flex h-12 items-center gap-2 rounded-md px-5 text-sm font-semibold text-ink transition hover:-translate-y-0.5" style={{ background: theme.accent }}>
+              <a href="#catalog" className="inline-flex h-12 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-ink shadow-sm transition duration-200 hover:-translate-y-0.5 active:translate-y-0" style={{ background: theme.accent }}>
                 Смотреть товары <ArrowRight size={17} />
               </a>
-              <a href={whatsapp} className="inline-flex h-12 items-center gap-2 rounded-md border border-white/24 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/16">
+              <a href={whatsapp} className="inline-flex h-12 items-center gap-2 rounded-xl border border-white/24 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur transition duration-200 hover:-translate-y-0.5 hover:bg-white/16 active:translate-y-0">
                 <MessageCircle size={17} />Заказать в WhatsApp
               </a>
             </div>
@@ -373,20 +373,20 @@ function StoreHeader({ store, theme, totalCount, onCopy, whatsapp }: { store: St
     <header className="sticky top-0 z-30 border-b backdrop-blur-xl" style={{ background: isDark ? "rgba(17,17,17,0.86)" : "rgba(255,255,255,0.88)", borderColor: borderColor(isDark), color: theme.text }}>
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold uppercase tracking-normal" style={{ color: theme.accent }}>{theme.title}</p>
-          <h2 className="truncate text-lg font-semibold md:text-xl">{store.name}</h2>
+          <p className="truncate text-xs font-semibold uppercase tracking-wide" style={{ color: theme.accent }}>{theme.title}</p>
+          <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">{store.name}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/onboarding" className="hidden h-10 items-center rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
+          <Link href="/onboarding" className="hidden h-10 items-center rounded-xl border px-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 active:translate-y-0 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
             Создать магазин
           </Link>
-          <button onClick={onCopy} className="hidden h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition hover:-translate-y-0.5 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
+          <button type="button" onClick={onCopy} className="focus-ring hidden h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 active:translate-y-0 sm:inline-flex" style={{ borderColor: borderColor(isDark), background: theme.surface }}>
             <Copy size={16} />Ссылка
           </button>
-          <a href={whatsapp} className="hidden h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 sm:inline-flex" style={{ background: theme.accent }}>
+          <a href={whatsapp} className="hidden h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 active:translate-y-0 sm:inline-flex" style={{ background: theme.accent }}>
             <MessageCircle size={16} />Написать
           </a>
-          <a href="#checkout" className="relative grid h-11 w-11 place-items-center rounded-md text-white" style={{ background: theme.accent }} title="Корзина">
+          <a href="#checkout" className="relative grid h-11 w-11 place-items-center rounded-xl text-white transition duration-200 hover:-translate-y-0.5 active:translate-y-0" style={{ background: theme.accent }} title="Корзина">
             <ShoppingCart size={18} />
             {totalCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-ink text-[10px] text-white">{totalCount}</span>}
           </a>
