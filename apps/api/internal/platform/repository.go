@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -416,10 +416,10 @@ func (r *Repository) OrdersByStore(ctx context.Context, storeID string, limit, o
 
 func (r *Repository) CreateLead(ctx context.Context, lead Lead) (Lead, error) {
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO leads (store_id, customer_name, phone, message, status)
-		VALUES ($1, $2, $3, $4, COALESCE(nullif($5, ''), 'new'))
-		RETURNING id::text, store_id::text, customer_name, phone, COALESCE(message, ''), status, created_at
-	`, lead.StoreID, lead.CustomerName, lead.Phone, lead.Message, lead.Status)
+		INSERT INTO leads (store_id, customer_name, phone, message, manager_comment, status)
+		VALUES ($1, $2, $3, $4, COALESCE($5, ''), COALESCE(nullif($6, ''), 'new'))
+		RETURNING id::text, store_id::text, customer_name, phone, COALESCE(message, ''), COALESCE(manager_comment, ''), status, created_at
+	`, lead.StoreID, lead.CustomerName, lead.Phone, lead.Message, lead.ManagerComment, lead.Status)
 	return scanLead(row)
 }
 
@@ -429,7 +429,7 @@ func (r *Repository) LeadsByStore(ctx context.Context, storeID string, limit, of
 		return nil, 0, err
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text, store_id::text, customer_name, phone, COALESCE(message, ''), status, created_at
+		SELECT id::text, store_id::text, customer_name, phone, COALESCE(message, ''), COALESCE(manager_comment, ''), status, created_at
 		FROM leads
 		WHERE store_id = $1
 		ORDER BY created_at DESC
@@ -451,16 +451,91 @@ func (r *Repository) LeadsByStore(ctx context.Context, storeID string, limit, of
 }
 
 func (r *Repository) UpdateLeadStatusByOwner(ctx context.Context, leadID, ownerID, status string) (Lead, error) {
-	row := r.db.QueryRow(ctx, `
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Lead{}, err
+	}
+	defer tx.Rollback(ctx)
+	var previousStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT l.status
+		FROM leads l
+		JOIN stores s ON s.id = l.store_id
+		WHERE l.id = $1 AND s.owner_id = $2
+	`, leadID, ownerID).Scan(&previousStatus)
+	if err != nil {
+		return Lead{}, err
+	}
+	row := tx.QueryRow(ctx, `
 		UPDATE leads AS l
 		SET status = $3
 		FROM stores AS s
 		WHERE l.id = $1
 		  AND l.store_id = s.id
 		  AND s.owner_id = $2
-		RETURNING l.id::text, l.store_id::text, l.customer_name, l.phone, COALESCE(l.message, ''), l.status, l.created_at
+		RETURNING l.id::text, l.store_id::text, l.customer_name, l.phone, COALESCE(l.message, ''), COALESCE(l.manager_comment, ''), l.status, l.created_at
 	`, leadID, ownerID, status)
+	lead, err := scanLead(row)
+	if err != nil {
+		return Lead{}, err
+	}
+	if previousStatus != status {
+		_, _ = tx.Exec(ctx, `
+			INSERT INTO lead_status_history (lead_id, from_status, to_status)
+			VALUES ($1::uuid, $2, $3)
+		`, leadID, previousStatus, status)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Lead{}, err
+	}
+	return lead, nil
+}
+
+func (r *Repository) LeadByIDByOwner(ctx context.Context, leadID, ownerID string) (Lead, error) {
+	row := r.db.QueryRow(ctx, `
+		SELECT l.id::text, l.store_id::text, l.customer_name, l.phone, COALESCE(l.message, ''), COALESCE(l.manager_comment, ''), l.status, l.created_at
+		FROM leads l
+		JOIN stores s ON s.id = l.store_id
+		WHERE l.id = $1 AND s.owner_id = $2
+	`, leadID, ownerID)
 	return scanLead(row)
+}
+
+func (r *Repository) UpdateLeadCommentByOwner(ctx context.Context, leadID, ownerID, comment string) (Lead, error) {
+	row := r.db.QueryRow(ctx, `
+		UPDATE leads AS l
+		SET manager_comment = $3
+		FROM stores AS s
+		WHERE l.id = $1
+		  AND l.store_id = s.id
+		  AND s.owner_id = $2
+		RETURNING l.id::text, l.store_id::text, l.customer_name, l.phone, COALESCE(l.message, ''), COALESCE(l.manager_comment, ''), l.status, l.created_at
+	`, leadID, ownerID, comment)
+	return scanLead(row)
+}
+
+func (r *Repository) LeadStatusHistoryByOwner(ctx context.Context, leadID, ownerID string) ([]LeadStatusEvent, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT h.id::text, h.lead_id::text, h.from_status, h.to_status, h.created_at
+		FROM lead_status_history h
+		JOIN leads l ON l.id = h.lead_id
+		JOIN stores s ON s.id = l.store_id
+		WHERE h.lead_id = $1 AND s.owner_id = $2
+		ORDER BY h.created_at DESC
+	`, leadID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]LeadStatusEvent, 0)
+	for rows.Next() {
+		var item LeadStatusEvent
+		if err := rows.Scan(&item.ID, &item.LeadID, &item.FromStatus, &item.ToStatus, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
 }
 
 func (r *Repository) AddGeneration(ctx context.Context, generation AIGeneration) (AIGeneration, error) {
@@ -752,7 +827,7 @@ func scanNotificationJob(row pgx.Row) (NotificationJob, error) {
 
 func scanLead(row pgx.Row) (Lead, error) {
 	var lead Lead
-	err := row.Scan(&lead.ID, &lead.StoreID, &lead.CustomerName, &lead.Phone, &lead.Message, &lead.Status, &lead.CreatedAt)
+	err := row.Scan(&lead.ID, &lead.StoreID, &lead.CustomerName, &lead.Phone, &lead.Message, &lead.ManagerComment, &lead.Status, &lead.CreatedAt)
 	return lead, err
 }
 

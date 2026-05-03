@@ -170,11 +170,21 @@ type OrderEvent struct {
 }
 
 type Lead struct {
-	ID           string    `json:"id"`
-	StoreID      string    `json:"store_id"`
-	CustomerName string    `json:"customer_name"`
-	Phone        string    `json:"phone"`
-	Message      string    `json:"message"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID             string            `json:"id"`
+	StoreID        string            `json:"store_id"`
+	CustomerName   string            `json:"customer_name"`
+	Phone          string            `json:"phone"`
+	Message        string            `json:"message"`
+	ManagerComment string            `json:"manager_comment,omitempty"`
+	Status         string            `json:"status"`
+	CreatedAt      time.Time         `json:"created_at"`
+	StatusHistory  []LeadStatusEvent `json:"status_history,omitempty"`
+}
+
+type LeadStatusEvent struct {
+	ID         string    `json:"id"`
+	LeadID     string    `json:"lead_id"`
+	FromStatus string    `json:"from_status"`
+	ToStatus   string    `json:"to_status"`
+	CreatedAt  time.Time `json:"created_at"`
 }

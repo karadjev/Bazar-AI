@@ -3,7 +3,9 @@ package sprint
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"bazar-ai/apps/api/internal/platform"
 	"bazar-ai/apps/api/pkg/httpx"
@@ -152,6 +154,58 @@ func (h Handler) UpdateLeadStatus(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
 		return
 	}
+	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
+	lead.StatusHistory = history
+	httpx.JSON(w, http.StatusOK, lead)
+}
+
+func (h Handler) LeadDetails(w http.ResponseWriter, r *http.Request) {
+	ownerID := resolveOwnerID(r)
+	if ownerID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusUnauthorized, "unauthorized", "missing owner context")
+		return
+	}
+	leadID := validator.Text(r.PathValue("id"), 64)
+	if leadID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "lead id is required")
+		return
+	}
+	lead, err := h.repo.LeadByIDByOwner(r.Context(), leadID, ownerID)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		return
+	}
+	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
+	lead.StatusHistory = history
+	httpx.JSON(w, http.StatusOK, lead)
+}
+
+func (h Handler) UpdateLeadComment(w http.ResponseWriter, r *http.Request) {
+	ownerID := resolveOwnerID(r)
+	if ownerID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusUnauthorized, "unauthorized", "missing owner context")
+		return
+	}
+	leadID := validator.Text(r.PathValue("id"), 64)
+	if leadID == "" {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "lead id is required")
+		return
+	}
+	var req struct {
+		Comment string `json:"comment"`
+	}
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid payload")
+		return
+	}
+	req.Comment = validator.Text(req.Comment, 1000)
+	lead, err := h.repo.UpdateLeadCommentByOwner(r.Context(), leadID, ownerID, req.Comment)
+	if err != nil {
+		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		return
+	}
+	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
+	lead.StatusHistory = history
 	httpx.JSON(w, http.StatusOK, lead)
 }
 
@@ -166,6 +220,20 @@ func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not load stores")
 		return
 	}
+	period := 7
+	if raw := strings.TrimSpace(r.URL.Query().Get("period")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && (parsed == 7 || parsed == 30 || parsed == 90) {
+			period = parsed
+		}
+	}
+	start := time.Now().AddDate(0, 0, -(period - 1))
+	timeline := make([]map[string]any, 0, period)
+	series := map[string]map[string]int64{}
+	for i := 0; i < period; i++ {
+		day := start.AddDate(0, 0, i).Format("2006-01-02")
+		timeline = append(timeline, map[string]any{"date": day, "leads": 0, "orders": 0, "gmv": 0})
+		series[day] = map[string]int64{"leads": 0, "orders": 0, "gmv": 0}
+	}
 	var leadsTotal int
 	var ordersTotal int
 	var gmvTotal int64
@@ -173,13 +241,32 @@ func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
 		storeLeads, _, leadErr := h.repo.LeadsByStore(r.Context(), store.ID, 500, 0)
 		if leadErr == nil {
 			leadsTotal += len(storeLeads)
+			for _, lead := range storeLeads {
+				day := lead.CreatedAt.Format("2006-01-02")
+				if bucket, ok := series[day]; ok {
+					bucket["leads"]++
+				}
+			}
 		}
 		storeOrders, _, orderErr := h.repo.OrdersByStore(r.Context(), store.ID, 500, 0)
 		if orderErr == nil {
 			ordersTotal += len(storeOrders)
 			for _, order := range storeOrders {
 				gmvTotal += order.TotalAmount
+				day := order.CreatedAt.Format("2006-01-02")
+				if bucket, ok := series[day]; ok {
+					bucket["orders"]++
+					bucket["gmv"] += order.TotalAmount
+				}
 			}
+		}
+	}
+	for _, point := range timeline {
+		day := point["date"].(string)
+		if bucket, ok := series[day]; ok {
+			point["leads"] = bucket["leads"]
+			point["orders"] = bucket["orders"]
+			point["gmv"] = bucket["gmv"]
 		}
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{
@@ -188,6 +275,8 @@ func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
 			"leads":  leadsTotal,
 			"orders": ordersTotal,
 			"gmv":    gmvTotal,
+			"period": period,
+			"series": timeline,
 		},
 	})
 }
