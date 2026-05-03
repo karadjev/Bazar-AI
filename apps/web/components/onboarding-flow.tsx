@@ -59,6 +59,7 @@ export function OnboardingFlow() {
   const [generationIndex, setGenerationIndex] = useState(0);
   const [store, setStore] = useState<Store | null>(null);
   const [toast, setToast] = useState("");
+  const [launchPlan, setLaunchPlan] = useState("");
   const [form, setForm] = useState({
     email: "demo@bazar.ai",
     password: "demo-password",
@@ -77,6 +78,28 @@ export function OnboardingFlow() {
   const storePath = `/store/${storeSlug}`;
   const publicUrl = typeof window !== "undefined" ? `${location.origin}${storePath}` : storePath;
   const shareText = encodeURIComponent(`Мой магазин ${form.name}: ${publicUrl}`);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const presetNiche = params.get("niche");
+    const presetStyle = params.get("style");
+    const presetName = params.get("name");
+    const presetCity = params.get("city");
+    const plan = params.get("plan");
+    if (plan === "start") setLaunchPlan("Тариф: Старт");
+    else if (plan === "growth") setLaunchPlan("Тариф: Рост");
+    else if (plan === "business") setLaunchPlan("Тариф: Бизнес");
+    else setLaunchPlan("");
+    if (!presetNiche && !presetStyle && !presetName && !presetCity) return;
+    setForm((prev) => ({
+      ...prev,
+      niche: presetNiche || prev.niche,
+      style: presetStyle || prev.style,
+      name: presetName || prev.name,
+      city: presetCity || prev.city
+    }));
+  }, []);
 
   useEffect(() => {
     if (!loading) return;
@@ -137,21 +160,30 @@ export function OnboardingFlow() {
     showToast("Ссылка скопирована");
   }
 
+  function canGoNext(currentStep: number) {
+    if (currentStep === 0) return Boolean(form.niche.trim());
+    if (currentStep === 1) return form.name.trim().length >= 2 && form.region.trim().length >= 2 && form.city.trim().length >= 2 && form.email.includes("@") && form.password.trim().length >= 8;
+    if (currentStep === 2) return Boolean(form.phone.trim() || form.whatsapp.trim() || form.telegram.trim());
+    if (currentStep === 3) return Boolean(form.style.trim());
+    return true;
+  }
+
   return (
-    <main className="min-h-screen bg-paper text-ink premium-grid">
+    <main className="min-h-screen bg-paper text-ink premium-grid" data-testid="page-onboarding">
       {toast && <Toast>{toast}</Toast>}
       <header className="sticky top-0 z-30 border-b border-line/80 bg-white/88 backdrop-blur-xl">
         <div className="shell flex items-center justify-between gap-3 py-3">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white shadow-float"><StoreIcon size={20} /></span>
-            <span>
-              <span className="block text-sm font-semibold">BuildYourStore.ai</span>
-              <span className="block text-xs font-medium text-neutral-500">Запуск магазина</span>
+          <Link href="/" className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-ink text-white shadow-float"><StoreIcon size={20} /></span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">BuildYourStore.ai</span>
+              <span className="block truncate text-xs font-medium text-neutral-500">Запуск магазина{launchPlan ? ` · ${launchPlan}` : ""}</span>
             </span>
           </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard" className="hidden h-10 items-center rounded-md border border-line bg-white px-3 text-sm font-semibold transition hover:bg-neutral-50 sm:inline-flex">Кабинет</Link>
-            <a href={storePath} className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white transition hover:bg-neutral-800">Предпросмотр <ArrowRight size={16} /></a>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/templates" className="hidden h-10 items-center rounded-2xl border border-line bg-white px-3 text-sm font-semibold transition duration-200 hover:border-neutral-300 hover:bg-neutral-50 sm:inline-flex">Шаблоны</Link>
+            <Link href="/dashboard" className="hidden h-10 items-center rounded-2xl border border-line bg-white px-3 text-sm font-semibold transition duration-200 hover:border-neutral-300 hover:bg-neutral-50 sm:inline-flex">Кабинет</Link>
+            <a href={storePath} className="inline-flex h-10 items-center gap-2 rounded-2xl bg-ink px-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-neutral-800 active:translate-y-0">Предпросмотр <ArrowRight size={16} /></a>
           </div>
         </div>
       </header>
@@ -160,10 +192,10 @@ export function OnboardingFlow() {
         <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
           <div>
             <Badge tone="gold">Премиум-мастер</Badge>
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-balance md:text-6xl">
+            <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-balance tracking-tight md:text-6xl md:leading-[1.08]">
               Соберите витрину, которую не стыдно показать первому клиенту
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-600 md:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-600 md:text-base md:leading-8">
               Мы ведем вас пошагово: от ниши до готовой ссылки. Каждый шаг сразу отражается в живом предпросмотре.
             </p>
           </div>
@@ -324,7 +356,16 @@ export function OnboardingFlow() {
                 <Button variant="ghost" onClick={() => setStep(Math.max(step - 1, 0))} disabled={step === 0}>
                   <ArrowLeft size={17} />Назад
                 </Button>
-                <Button variant="dark" onClick={() => setStep(step + 1)}>
+                <Button
+                  variant="dark"
+                  onClick={() => {
+                    if (!canGoNext(step)) {
+                      showToast("Заполните обязательные поля, чтобы продолжить");
+                      return;
+                    }
+                    setStep(step + 1);
+                  }}
+                >
                   Дальше <ArrowRight size={17} />
                 </Button>
               </div>
@@ -356,9 +397,9 @@ function WizardPanel({ eyebrow, title, children }: { eyebrow: string; title: str
 
 function ChoiceCard({ title, subtitle, active, icon: Icon, onClick }: { title: string; subtitle: string; active: boolean; icon: LucideIcon; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`min-h-[156px] rounded-lg border p-4 text-left transition duration-200 hover:-translate-y-1 hover:shadow-premium ${active ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>
+    <button type="button" onClick={onClick} className={`focus-ring min-h-[156px] rounded-xl border p-4 text-left transition duration-200 hover:-translate-y-1 hover:shadow-premium ${active ? "border-ink bg-ink text-white shadow-[0_20px_50px_rgba(13,17,23,0.2)]" : "border-line bg-white hover:border-neutral-200"}`}>
       <div className="flex items-start justify-between gap-3">
-        <span className={`grid h-11 w-11 place-items-center rounded-md ${active ? "bg-white text-ink" : "bg-paper text-sea"}`}><Icon size={20} /></span>
+        <span className={`grid h-11 w-11 place-items-center rounded-xl ${active ? "bg-white text-ink" : "bg-paper text-sea"}`}><Icon size={20} /></span>
         {active && <CheckCircle2 size={19} />}
       </div>
       <p className="mt-5 text-lg font-semibold">{title}</p>

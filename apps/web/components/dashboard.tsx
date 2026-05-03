@@ -15,7 +15,7 @@ export function Dashboard() {
               <ShoppingBag size={20} />
             </div>
             <div>
-              <p className="text-sm font-semibold">Bazar AI</p>
+              <p className="text-sm font-semibold">BuildYourStore.ai</p>
               <p className="text-xs text-neutral-500">Kavkaz Style</p>
             </div>
           </div>

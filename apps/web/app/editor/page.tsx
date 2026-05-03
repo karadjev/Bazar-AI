@@ -8,7 +8,13 @@ import { storefrontThemes } from "@/lib/themes";
 import { AIActions } from "@/components/ai-actions";
 
 const blocks = ["первый экран", "товары", "категории", "отзывы", "акции", "доставка", "вопросы", "контакты", "CTA для Instagram/Telegram"];
-const quickStyles = ["Премиум", "Редакционный", "Минимализм", "Локальный", "Контраст"];
+const quickStyles: Array<{ label: string; themeCode: string; title: string; button: string }> = [
+  { label: "Премиум", themeCode: "premium-fashion", title: "Премиальная витрина", button: "Заказать сегодня" },
+  { label: "Редакционный", themeCode: "beauty", title: "Редакционный lookbook", button: "Подобрать образ" },
+  { label: "Минимализм", themeCode: "premium-boutique", title: "Чистый минимализм", button: "В корзину" },
+  { label: "Локальный", themeCode: "halal-market", title: "Локальный маркет", button: "Заказать доставку" },
+  { label: "Контраст", themeCode: "perfume-luxury", title: "Контрастный hero", button: "Оставить заявку" }
+];
 
 export default function StoreEditorPage() {
   const [activeBlock, setActiveBlock] = useState("первый экран");
@@ -56,23 +62,18 @@ export default function StoreEditorPage() {
     setToast("AI сделал магазин красивее");
   }
 
-  function showPlaceholder(value: string) {
-    setToast(value);
-    setTimeout(() => setToast(""), 2200);
-  }
-
   return (
-    <main className="min-h-screen bg-paper text-ink premium-grid">
+    <main className="min-h-screen bg-paper text-ink premium-grid" data-testid="page-editor">
       {toast && <Toast>{toast}</Toast>}
-      <header className="glass-panel sticky top-3 z-20 mx-auto mt-3 flex max-w-7xl items-center justify-between rounded-lg px-4 py-3 shadow-soft">
+      <header className="glass-panel sticky top-3 z-20 mx-auto mt-3 flex max-w-7xl items-center justify-between rounded-2xl px-4 py-3 shadow-soft">
         <div>
-          <p className="text-xs font-semibold uppercase text-sea">Редактор витрины</p>
-          <h1 className="text-lg font-semibold">Редактор магазина</h1>
+          <p className="text-xs font-semibold uppercase tracking-wide text-sea">Редактор витрины</p>
+          <h1 className="text-lg font-semibold tracking-tight">Редактор магазина</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs font-semibold text-mint md:inline">{autosaved}</span>
-          <button onClick={undo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Отменить"><Undo2 size={17} /></button>
-          <button onClick={redo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Вернуть"><Redo2 size={17} /></button>
+          <button type="button" onClick={undo} className="focus-ring grid h-10 w-10 place-items-center rounded-xl border border-line bg-white transition duration-200 hover:border-neutral-300 hover:bg-neutral-50" title="Отменить"><Undo2 size={17} /></button>
+          <button type="button" onClick={redo} className="focus-ring grid h-10 w-10 place-items-center rounded-xl border border-line bg-white transition duration-200 hover:border-neutral-300 hover:bg-neutral-50" title="Вернуть"><Redo2 size={17} /></button>
           <Tabs items={["Компьютер", "Телефон"]} active={preview} onChange={setPreview} />
           <Button onClick={save}>Сохранить</Button>
         </div>
@@ -86,7 +87,7 @@ export default function StoreEditorPage() {
           </div>
           <div className="mt-4 space-y-2">
             {blocks.map((block) => (
-              <button key={block} onClick={() => setActiveBlock(block)} className={`flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm font-semibold transition hover:-translate-y-0.5 ${activeBlock === block ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>
+              <button key={block} type="button" onClick={() => setActiveBlock(block)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm font-semibold transition duration-200 hover:-translate-y-0.5 ${activeBlock === block ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-neutral-300"}`}>
                 <GripVertical size={16} className={activeBlock === block ? "text-white/[0.6]" : "text-neutral-400"} />
                 {block}
               </button>
@@ -151,14 +152,29 @@ export default function StoreEditorPage() {
             <div>
               <p className="text-xs font-semibold text-neutral-500">Быстрые стили</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {quickStyles.map((style) => <Badge key={style} tone="neutral">{style}</Badge>)}
+                {quickStyles.map((style) => (
+                  <button
+                    key={style.label}
+                    type="button"
+                    onClick={() => {
+                      const picked = storefrontThemes.find((t) => t.code === style.themeCode) || storefrontThemes[0];
+                      setTheme(picked);
+                      updateSettings({ title: style.title, button: style.button, color: picked.accent });
+                      setToast(`Применен стиль «${style.label}»`);
+                      setTimeout(() => setToast(""), 2000);
+                    }}
+                    className="rounded-full border border-line bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-soft"
+                  >
+                    {style.label}
+                  </button>
+                ))}
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold text-neutral-500">Темы</p>
               <div className="mt-2 grid gap-2">
                 {storefrontThemes.map((item) => (
-                  <button key={item.code} onClick={() => { setTheme(item); updateSettings({ ...settings, color: item.accent }); }} className={`rounded-md border p-3 text-left text-sm font-semibold ${theme.code === item.code ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>{item.title}</button>
+                  <button key={item.code} type="button" onClick={() => { setTheme(item); updateSettings({ ...settings, color: item.accent }); }} className={`focus-ring rounded-xl border p-3 text-left text-sm font-semibold transition duration-200 ${theme.code === item.code ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-neutral-300"}`}>{item.title}</button>
                 ))}
               </div>
             </div>
@@ -167,7 +183,18 @@ export default function StoreEditorPage() {
               <AIActions compact />
             </div>
             <Button onClick={aiRedesign} variant="secondary" className="w-full"><Sparkles size={17} />Улучшить магазин с AI</Button>
-            <Button variant="dark" className="w-full" onClick={() => showPlaceholder("Быстрое CTA для Telegram скоро будет доступно")}><MessageCircle size={17} />CTA для Telegram</Button>
+            <Button
+              variant="dark"
+              className="w-full"
+              onClick={() => {
+                updateSettings({ ...settings, button: "Заказать в Telegram" });
+                setActiveBlock("CTA для Instagram/Telegram");
+                setToast("CTA для Telegram применен");
+                setTimeout(() => setToast(""), 2200);
+              }}
+            >
+              <MessageCircle size={17} />CTA для Telegram
+            </Button>
           </div>
         </Card>
       </section>

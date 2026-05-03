@@ -102,6 +102,10 @@ cd apps/web
 E2E_API_URL=http://127.0.0.1:8080 npm run e2e
 ```
 
+Смоук фронта (нужен `npm run dev` на порту 3000): `npm run e2e:web`. Оба набора: `npm run e2e:all`.
+
+Для production-сборки фронта задайте публичный URL: скопируйте `apps/web/.env.example` в `.env.local` и укажите `NEXT_PUBLIC_SITE_URL` (иначе canonical/OG/JSON-LD останутся на localhost или временном Vercel-URL).
+
 ## MVP-цель
 
 Пользователь должен зарегистрироваться, пройти онбординг, создать магазин за 5 минут, добавить товар, сгенерировать AI-описание, получить публичную ссылку, принять заказ и увидеть его в CRM/Telegram.

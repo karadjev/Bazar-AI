@@ -18,7 +18,7 @@ export function AIActions({ compact = false }: { compact?: boolean }) {
     <div className={compact ? "flex gap-2 overflow-x-auto" : "grid gap-2 sm:grid-cols-2 lg:grid-cols-3"}>
       {toast && <Toast>{toast}</Toast>}
       {actions.map((action) => (
-        <button key={action} onClick={() => run(action)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-soft">
+        <button key={action} type="button" onClick={() => run(action)} className="focus-ring inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-soft">
           {action.includes("Telegram") ? <Bot size={15} className="text-sea" /> : <Sparkles size={15} className="text-berry" />}
           {action}
         </button>
