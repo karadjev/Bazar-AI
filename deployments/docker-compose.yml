@@ -40,6 +40,7 @@ services:
       - "3000"
     networks:
       - internal
+      - public
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://frontend:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
       interval: 20s
