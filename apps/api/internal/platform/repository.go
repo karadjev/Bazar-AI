@@ -58,7 +58,7 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, userID, tokenHash, de
 
 func (r *Repository) RefreshTokenActive(ctx context.Context, tokenHash, deviceID string) (User, error) {
 	row := r.db.QueryRow(ctx, `
-		SELECT u.id::text, COALESCE(u.phone, ''), COALESCE(u.email, ''), u.password_hash, u.role, u.status, u.created_at, u.updated_at
+		SELECT u.id::text, COALESCE(u.phone, ''), COALESCE(u.email, ''), COALESCE(u.name, ''), u.password_hash, u.role, u.status, u.created_at, u.updated_at
 		FROM refresh_tokens rt
 		JOIN users u ON u.id = rt.user_id
 		WHERE rt.token_hash = $1 AND rt.revoked_at IS NULL AND rt.expires_at > now()
