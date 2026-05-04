@@ -31,18 +31,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f5f7fb"
+  themeColor: "#eef2f9"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className="relative min-h-screen">
+      <body className="relative min-h-screen font-sans antialiased">
         <JsonLd />
         <a href="#page-main" className="skip-link">
           К основному содержимому
         </a>
-        <div id="page-main" tabIndex={-1} className="outline-none">
+        <div id="page-main" tabIndex={-1} className="relative z-[1] outline-none">
           {children}
         </div>
       </body>

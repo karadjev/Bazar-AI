@@ -43,7 +43,11 @@ func (h Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := httpx.Decode(r, &req); err != nil || req.Password == "" {
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.RespondDecodeError(w, r, err, "invalid register payload")
+		return
+	}
+	if req.Password == "" {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid register payload")
 		return
 	}
@@ -76,7 +80,7 @@ func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid login payload")
+		httpx.RespondDecodeError(w, r, err, "invalid login payload")
 		return
 	}
 	req.Login = strings.TrimSpace(req.Login)
@@ -94,7 +98,11 @@ func (h Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 		DeviceID     string `json:"device_id"`
 	}
-	if err := httpx.Decode(r, &req); err != nil || req.RefreshToken == "" {
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.RespondDecodeError(w, r, err, "invalid refresh payload")
+		return
+	}
+	if req.RefreshToken == "" {
 		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid refresh payload")
 		return
 	}
@@ -122,7 +130,7 @@ func (h Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		All          bool   `json:"all"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid logout payload")
+		httpx.RespondDecodeError(w, r, err, "invalid logout payload")
 		return
 	}
 	if req.All {
@@ -171,7 +179,7 @@ func (h Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	fullUser, err := h.repo.UserByID(r.Context(), user.ID)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "user not found")
+		httpx.RespondInfraError(w, r, err, "user not found")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"user": fullUser})
@@ -195,6 +203,9 @@ func (h Handler) Middleware(roles ...string) func(http.Handler) http.Handler {
 			}
 			claims := &Claims{}
 			token, err := jwt.ParseWithClaims(tokenValue, claims, func(token *jwt.Token) (any, error) {
+				if token.Method != jwt.SigningMethodHS256 {
+					return nil, errors.New("unexpected signing method")
+				}
 				return h.jwtSecret, nil
 			})
 			if err != nil || !token.Valid {

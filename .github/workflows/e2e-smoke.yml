@@ -5,6 +5,13 @@ on:
     - cron: "17 2 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: e2e-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   alpha-flow:
     name: Alpha Flow
@@ -16,6 +23,17 @@ jobs:
         run: make env-init
       - name: Start stack
         run: make up
+      - name: Wait for edge health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8080/nginx-health" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "ERROR: stack did not become healthy in time"
+          docker compose --env-file deployments/env/dev.env -f deployments/docker-compose.yml ps
+          exit 1
       - name: Run API smoke flow
         run: docker compose --env-file deployments/env/dev.env -f deployments/docker-compose.yml exec -T frontend sh -c "E2E_API_URL=http://api:8080 npm run e2e"
       - name: Dump logs on failure

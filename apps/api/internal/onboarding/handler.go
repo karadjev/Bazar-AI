@@ -27,7 +27,7 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 		Contacts platform.Contacts `json:"contacts"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid onboarding payload")
+		httpx.RespondDecodeError(w, r, err, "invalid onboarding payload")
 		return
 	}
 	if req.Name == "" {
@@ -44,7 +44,7 @@ func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
 		Region: req.Region, City: req.City, Currency: "RUB", Theme: req.Style, Style: req.Style, Contacts: req.Contacts,
 	})
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")
+		httpx.RespondInfraError(w, r, err, "could not create store")
 		return
 	}
 	_, _ = h.repo.AddGeneration(r.Context(), platform.AIGeneration{

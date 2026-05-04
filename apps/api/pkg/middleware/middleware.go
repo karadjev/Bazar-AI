@@ -5,12 +5,13 @@ import (
 
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
-	"os"
+	"runtime/debug"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,8 +35,8 @@ func (w *responseWriter) Write(body []byte) (int, error) {
 
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Header.Get("X-Request-Id")
-		if requestID == "" {
+		requestID := strings.TrimSpace(r.Header.Get("X-Request-Id"))
+		if requestID == "" || len(requestID) > 128 || strings.ContainsAny(requestID, "\r\n") {
 			requestID = randomID()
 		}
 		w.Header().Set("X-Request-Id", requestID)
@@ -43,21 +44,84 @@ func RequestID(next http.Handler) http.Handler {
 	})
 }
 
-func StructuredLogger(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rw, r)
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
-			"level":       "info",
-			"ts":          time.Now().UTC().Format(time.RFC3339Nano),
-			"request_id":  w.Header().Get("X-Request-Id"),
-			"method":      r.Method,
-			"path":        r.URL.Path,
-			"status":      rw.status,
-			"duration_ms": time.Since(start).Milliseconds(),
+// StructuredLogger пишет JSON-лог по завершении запроса (включая client_ip с учётом доверенных прокси).
+func StructuredLogger(trusted []*net.IPNet) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(rw, r)
+			slog.Info("http_request",
+				"request_id", w.Header().Get("X-Request-Id"),
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", ClientIP(r, trusted),
+				"status", rw.status,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
 		})
+	}
+}
+
+// RecoverPanic перехватывает panic в обработчиках и отвечает 500 без падения процесса.
+func RecoverPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rv := recover(); rv != nil {
+				stack := debug.Stack()
+				if len(stack) > 8192 {
+					stack = stack[:8192]
+				}
+				slog.Error("panic_recovered",
+					"request_id", r.Header.Get("X-Request-Id"),
+					"method", r.Method,
+					"path", r.URL.Path,
+					"panic", rv,
+					"stack", string(stack),
+				)
+				// Avoid caching 5xx JSON error bodies by intermediaries.
+				w.Header().Set("Cache-Control", "no-store")
+				httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "unexpected server error")
+			}
+		}()
+		next.ServeHTTP(w, r)
 	})
+}
+
+// SecurityHeaders — базовые заголовки для API и статики.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// MaxRequestBody ограничивает размер тела для методов с телом; multipart пропускается (загрузки задают свой лимит).
+func MaxRequestBody(maxBytes int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			switch r.Method {
+			case http.MethodPost, http.MethodPut, http.MethodPatch:
+			default:
+				next.ServeHTTP(w, r)
+				return
+			}
+			ct := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type")))
+			if strings.HasPrefix(ct, "multipart/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 type StatusMetrics struct {
@@ -144,15 +208,33 @@ type RateLimiter struct {
 	requests map[string][]time.Time
 	limit    int
 	window   time.Duration
+	trusted  []*net.IPNet
 }
 
-func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
-	return &RateLimiter{requests: map[string][]time.Time{}, limit: limit, window: window}
+// NewRateLimiter лимитирует по client IP; trusted задаёт сети прокси (см. config.TrustedProxyNets).
+func NewRateLimiter(limit int, window time.Duration, trusted []*net.IPNet) *RateLimiter {
+	return &RateLimiter{requests: map[string][]time.Time{}, limit: limit, window: window, trusted: trusted}
+}
+
+func (l *RateLimiter) compactLocked(now time.Time) {
+	for ip, times := range l.requests {
+		recent := make([]time.Time, 0, len(times))
+		for _, at := range times {
+			if now.Sub(at) < l.window {
+				recent = append(recent, at)
+			}
+		}
+		if len(recent) == 0 {
+			delete(l.requests, ip)
+		} else {
+			l.requests[ip] = recent
+		}
+	}
 }
 
 func (l *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r)
+		ip := ClientIP(r, l.trusted)
 		now := time.Now()
 		l.mu.Lock()
 		recent := l.requests[ip][:0]
@@ -163,24 +245,60 @@ func (l *RateLimiter) Middleware(next http.Handler) http.Handler {
 		}
 		if len(recent) >= l.limit {
 			l.mu.Unlock()
+			// Rate-limit responses must not be cached.
+			w.Header().Set("Cache-Control", "no-store")
 			httpx.ErrorWithRequest(w, r, http.StatusTooManyRequests, "rate_limited", "rate limit exceeded")
 			return
 		}
 		l.requests[ip] = append(recent, now)
+		if len(l.requests) > 2048 {
+			l.compactLocked(now)
+		}
 		l.mu.Unlock()
 		next.ServeHTTP(w, r)
 	})
 }
 
-func clientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		return forwarded
-	}
+// ClientIP возвращает IP клиента для лимитов и аудита.
+// Если TCP-пир не в trusted, заголовки X-Real-IP / X-Forwarded-For игнорируются.
+func ClientIP(r *http.Request, trusted []*net.IPNet) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
 	}
-	return host
+	direct := net.ParseIP(host)
+	if direct == nil {
+		return host
+	}
+	if !ipInTrustedNets(direct, trusted) {
+		return direct.String()
+	}
+	if realIP := strings.TrimSpace(r.Header.Get("X-Real-IP")); realIP != "" {
+		if ip := net.ParseIP(realIP); ip != nil {
+			return ip.String()
+		}
+	}
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		for _, part := range strings.Split(forwarded, ",") {
+			ip := net.ParseIP(strings.TrimSpace(part))
+			if ip != nil {
+				return ip.String()
+			}
+		}
+	}
+	return direct.String()
+}
+
+func ipInTrustedNets(ip net.IP, nets []*net.IPNet) bool {
+	if len(nets) == 0 {
+		return false
+	}
+	for _, n := range nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func randomID() string {
@@ -205,3 +323,5 @@ func statusClass(status int) string {
 	}
 	return fmt.Sprintf("%dxx", status/100)
 }
+
+

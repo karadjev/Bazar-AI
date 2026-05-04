@@ -20,7 +20,7 @@ func NewHandler(repo *platform.Repository) Handler {
 func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req platform.Store
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid store payload")
+		httpx.RespondDecodeError(w, r, err, "invalid store payload")
 		return
 	}
 	req.Name = validator.Text(req.Name, 80)
@@ -36,7 +36,7 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req.OwnerID = auth.UserFromRequest(r).ID
 	store, err := h.repo.CreateStore(r.Context(), req)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")
+		httpx.RespondInfraError(w, r, err, "could not create store")
 		return
 	}
 	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: req.OwnerID, Action: "store.created", EntityType: "store", EntityID: store.ID})
@@ -57,7 +57,7 @@ func (h Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreByID(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
+		httpx.RespondInfraError(w, r, err, "store not found")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, store)
@@ -66,7 +66,7 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 func (h Handler) PublicStore(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
+		httpx.RespondInfraError(w, r, err, "store not found")
 		return
 	}
 	products, _, _ := h.repo.ProductsByStore(r.Context(), store.ID, 24, 0)

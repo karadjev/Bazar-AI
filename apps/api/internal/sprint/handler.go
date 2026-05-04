@@ -30,7 +30,7 @@ func (h Handler) CreateStore(w http.ResponseWriter, r *http.Request) {
 		Contacts platform.Contacts `json:"contacts"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid payload")
+		httpx.RespondDecodeError(w, r, err, "invalid payload")
 		return
 	}
 	req.Name = validator.Text(req.Name, 80)
@@ -82,7 +82,7 @@ func (h Handler) CreateStore(w http.ResponseWriter, r *http.Request) {
 		Contacts:    req.Contacts,
 	})
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create store")
+		httpx.RespondInfraError(w, r, err, "could not create store")
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, map[string]any{"store": store, "guest_mode": isGuestMode(r)})
@@ -141,7 +141,7 @@ func (h Handler) UpdateLeadStatus(w http.ResponseWriter, r *http.Request) {
 		Status string `json:"status"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid payload")
+		httpx.RespondDecodeError(w, r, err, "invalid payload")
 		return
 	}
 	req.Status = strings.ToLower(validator.Text(req.Status, 24))
@@ -151,7 +151,7 @@ func (h Handler) UpdateLeadStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	lead, err := h.repo.UpdateLeadStatusByOwner(r.Context(), leadID, ownerID, req.Status)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		httpx.RespondInfraError(w, r, err, "lead not found")
 		return
 	}
 	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
@@ -172,7 +172,7 @@ func (h Handler) LeadDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	lead, err := h.repo.LeadByIDByOwner(r.Context(), leadID, ownerID)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		httpx.RespondInfraError(w, r, err, "lead not found")
 		return
 	}
 	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
@@ -195,13 +195,13 @@ func (h Handler) UpdateLeadComment(w http.ResponseWriter, r *http.Request) {
 		Comment string `json:"comment"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid payload")
+		httpx.RespondDecodeError(w, r, err, "invalid payload")
 		return
 	}
 	req.Comment = validator.Text(req.Comment, 1000)
 	lead, err := h.repo.UpdateLeadCommentByOwner(r.Context(), leadID, ownerID, req.Comment)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "lead not found")
+		httpx.RespondInfraError(w, r, err, "lead not found")
 		return
 	}
 	history, _ := h.repo.LeadStatusHistoryByOwner(r.Context(), leadID, ownerID)
@@ -284,7 +284,7 @@ func (h Handler) DashboardAnalytics(w http.ResponseWriter, r *http.Request) {
 func (h Handler) StoreBySlug(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
+		httpx.RespondInfraError(w, r, err, "store not found")
 		return
 	}
 	products, _, _ := h.repo.ProductsByStore(r.Context(), store.ID, 24, 0)
@@ -294,7 +294,7 @@ func (h Handler) StoreBySlug(w http.ResponseWriter, r *http.Request) {
 func (h Handler) CreateLead(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
+		httpx.RespondInfraError(w, r, err, "store not found")
 		return
 	}
 	var req struct {
@@ -303,7 +303,7 @@ func (h Handler) CreateLead(w http.ResponseWriter, r *http.Request) {
 		Message      string `json:"message"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid lead payload")
+		httpx.RespondDecodeError(w, r, err, "invalid lead payload")
 		return
 	}
 	name := validator.Text(req.CustomerName, 80)

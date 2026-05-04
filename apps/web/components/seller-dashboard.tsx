@@ -5,22 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
-  Bot,
-  Boxes,
   Copy,
-  Eye,
-  ImagePlus,
   LogOut,
-  MessageCircle,
-  PackageCheck,
   Plus,
   Send,
-  Share2,
   ShoppingBag,
-  Sparkles,
-  Store as StoreIcon,
-  TrendingUp,
-  Wand2
+  TrendingUp
 } from "lucide-react";
 import { api, authMe, clearSession, dashboardAnalytics, dashboardLeadDetails, dashboardLeads, dashboardStores, deleteProduct, demoProducts, demoStore, getToken, Lead, loginDemo, money, Product, registerDemo, Store, updateDashboardLeadComment, updateDashboardLeadStatus, updateProduct } from "@/lib/api";
 import { clearGuestMode } from "@/lib/auth";
@@ -29,10 +19,10 @@ import { Badge, Button, Card, EmptyState, Input, MetricCard, Modal, ProductCard,
 type ListResponse<T> = T[] | { data?: T[] };
 
 const nextActions = [
-  { title: "Добавьте 3 товара", text: "Каталог с 5+ товарами выглядит живым и вызывает доверие.", icon: Boxes, tone: "blue" as const },
-  { title: "Подключите Telegram", text: "Новые заказы будут приходить туда, где вы уже общаетесь.", icon: MessageCircle, tone: "green" as const },
-  { title: "Поделитесь магазином", text: "Отправьте ссылку в сторис, чат или Telegram-канал.", icon: Share2, tone: "gold" as const },
-  { title: "Улучшите витрину с AI", text: "AI обновит hero, карточки и оффер под вашу нишу.", icon: Wand2, tone: "red" as const }
+  { title: "Добавьте 3 товара", text: "Каталог с 5+ товарами выглядит живым и вызывает доверие.", icon: "📦", tone: "blue" as const },
+  { title: "Подключите Telegram", text: "Новые заказы будут приходить туда, где вы уже общаетесь.", icon: "💬", tone: "green" as const },
+  { title: "Поделитесь магазином", text: "Отправьте ссылку в сторис, чат или Telegram-канал.", icon: "🔗", tone: "gold" as const },
+  { title: "Улучшите витрину с AI", text: "AI обновит hero, карточки и оффер под вашу нишу.", icon: "✨", tone: "red" as const }
 ];
 
 export function SellerDashboard() {
@@ -293,7 +283,9 @@ export function SellerDashboard() {
 
   function shareStore() {
     const text = `${location.origin}${storeLink}`;
-    navigator.clipboard?.writeText(text);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
     showToast("Ссылка на магазин скопирована");
   }
 
@@ -580,15 +572,19 @@ export function SellerDashboard() {
     <main className="min-h-screen bg-paper pb-24 text-ink premium-grid md:pb-6" data-testid="page-dashboard">
       {toast && <Toast>{toast}</Toast>}
       <section className="shell grid gap-4 py-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden rounded-2xl border border-line bg-white p-4 shadow-soft transition duration-200 hover:border-neutral-200 lg:block">
+        <aside className="relative hidden overflow-hidden rounded-2xl border border-line/90 bg-white/95 p-4 shadow-[0_24px_70px_rgba(10,13,18,0.07)] ring-1 ring-white/60 backdrop-blur-sm transition duration-200 hover:border-sea/15 lg:block">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sea/30 to-transparent" aria-hidden />
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-ink text-white"><ShoppingBag size={18} /></div>
+            <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-sea via-ink to-berry text-white shadow-[0_12px_28px_rgba(29,111,130,0.3)] ring-1 ring-white/20">
+              <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.3),transparent_55%)]" aria-hidden />
+              <ShoppingBag size={18} />
+            </div>
             <div>
-              <p className="text-xs font-semibold text-neutral-500">BuildYourStore.ai</p>
-              <p className="text-sm font-semibold">Панель продавца</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">BuildYourStore.ai</p>
+              <p className="text-sm font-extrabold tracking-tight">Панель продавца</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-2">
+          <div className="mt-5 grid gap-1.5">
             {[
               { key: "overview", label: "Обзор" },
               { key: "products", label: "Товары" },
@@ -599,24 +595,39 @@ export function SellerDashboard() {
                 key={item.key}
                 type="button"
                 onClick={() => jumpTo(item.key as "overview" | "leads" | "products" | "ai")}
-                className={`focus-ring h-10 rounded-xl px-3 text-left text-sm font-semibold transition duration-200 ${activePanel === item.key ? "bg-ink text-white" : "bg-paper text-neutral-600 hover:bg-neutral-100"}`}
+                className={`focus-ring h-10 rounded-xl px-3 text-left text-sm font-bold transition duration-200 ${
+                  activePanel === item.key
+                    ? "bg-gradient-to-r from-ink to-sea text-white shadow-md"
+                    : "bg-paper/80 text-neutral-600 hover:bg-white hover:text-ink hover:shadow-sm"
+                }`}
               >
                 {item.label}
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => { clearSession(); clearGuestMode(); location.href = "/"; }} className="focus-ring mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold transition duration-200 hover:border-neutral-300 hover:bg-neutral-50">
+          <button
+            type="button"
+            onClick={() => {
+              clearSession();
+              clearGuestMode();
+              location.href = "/";
+            }}
+            className="focus-ring mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line/90 bg-white/90 text-sm font-semibold shadow-sm transition duration-200 hover:border-neutral-300 hover:bg-white"
+          >
             <LogOut size={16} /> Выйти
           </button>
         </aside>
 
         <div className="space-y-4">
-          <header className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-soft">
+          <header className="glass-panel flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line/60 px-4 py-3 shadow-[0_20px_50px_rgba(10,13,18,0.06)]">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink text-white"><ShoppingBag size={21} /></div>
+              <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-sea via-ink to-berry text-white shadow-lg ring-1 ring-white/20">
+                <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.28),transparent_55%)]" aria-hidden />
+                <ShoppingBag size={21} />
+              </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-sea">Бизнес-пульт</p>
-                <h1 className="text-lg font-semibold tracking-tight">Добро пожаловать, {store.name}</h1>
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-sea">Бизнес-пульт</p>
+                <h1 className="text-lg font-extrabold tracking-tight">Добро пожаловать, {store.name}</h1>
                 <Link href={storeLink} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-ink">
                   {storeLink}
                   <ArrowUpRight size={13} />
@@ -626,22 +637,23 @@ export function SellerDashboard() {
             </div>
             <div className="flex flex-wrap gap-2">
               {!authName && <Button variant="secondary" onClick={() => setAuthModalOpen(true)}>Подключить аккаунт</Button>}
-              <Button variant="secondary" onClick={shareStore}><Share2 size={17} />Поделиться</Button>
+              <Button variant="secondary" onClick={shareStore}>Поделиться</Button>
               <Button onClick={createAIProduct}><Plus size={17} />Добавить товар</Button>
             </div>
           </header>
 
           {error && (
-            <div className="rounded-lg border border-saffron/30 bg-saffron/10 p-3 text-sm font-semibold text-neutral-800">
+            <div className="rounded-2xl border border-saffron/35 bg-gradient-to-r from-saffron/12 to-saffron/5 p-4 text-sm font-semibold text-neutral-800 shadow-sm ring-1 ring-saffron/15">
               {error}
             </div>
           )}
           {!tipsClosed && (
-            <Card className="p-4">
+            <Card className="relative overflow-hidden p-5">
+              <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sea via-berry to-saffron opacity-80" aria-hidden />
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Онбординг-подсказка</p>
-                  <p className="mt-1 text-xs text-neutral-500">Добавьте 3 товара, загрузите обложку витрины и отправьте ссылку первым клиентам.</p>
+                  <p className="text-sm font-bold">Онбординг-подсказка</p>
+                  <p className="mt-1 text-xs leading-5 text-neutral-600">Добавьте 3 товара, загрузите обложку витрины и отправьте ссылку первым клиентам.</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => { setTipsClosed(true); localStorage.setItem("bazar_dashboard_tips_closed", "1"); }}>Скрыть</Button>
               </div>
@@ -651,10 +663,10 @@ export function SellerDashboard() {
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {loading ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-32" />) : (
               <>
-                <MetricCard icon={<PackageCheck size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="из аналитики" />
+                <MetricCard icon={<ShoppingBag size={18} />} label="Заказы сегодня" value={String(newOrders)} hint="из аналитики" />
                 <MetricCard icon={<TrendingUp size={18} />} label="Выручка" value={money(todaySales)} hint="+18%" />
-                <MetricCard icon={<Boxes size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
-                <MetricCard icon={<Eye size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
+                <MetricCard icon={<ShoppingBag size={18} />} label="Товары" value={String(products.length)} hint="в каталоге" />
+                <MetricCard icon={<TrendingUp size={18} />} label="Просмотры магазина" value={String(views)} hint="7 дней" />
               </>
             )}
           </section>
@@ -666,13 +678,13 @@ export function SellerDashboard() {
                 <p className="text-xs text-neutral-500">Воронка и динамика лидов по дням</p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-xs font-semibold">
+                <div className="inline-flex rounded-xl border border-line/90 bg-paper p-1 text-xs font-semibold ring-1 ring-black/[0.02]">
                   {[7, 30, 90].map((period) => (
                     <button
                       key={period}
                       type="button"
                       onClick={() => setAnalyticsRange(period as 7 | 30 | 90)}
-                      className={`focus-ring rounded-md px-2 py-1 transition ${analyticsRange === period ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
+                      className={`focus-ring rounded-lg px-2 py-1 transition duration-200 ease-premium ${analyticsRange === period ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
                     >
                       {period}д
                     </button>
@@ -687,7 +699,7 @@ export function SellerDashboard() {
                 ["Заявки", analytics.leads || newOrders * 4, "bg-violet-300"],
                 ["Заказы", newOrders, "bg-emerald-400"]
               ].map(([label, value, color]) => (
-                <div key={label as string} className="rounded-xl border border-line bg-white p-3">
+                <div key={label as string} className="rounded-xl border border-line/90 bg-white p-3">
                   <p className="text-xs font-semibold text-neutral-500">{label as string}</p>
                   <p className="mt-1 text-2xl font-semibold">{String(value)}</p>
                   <div className="mt-3 h-2 rounded-full bg-paper">
@@ -700,7 +712,7 @@ export function SellerDashboard() {
               <p className="text-xs font-semibold text-neutral-500">Лиды по дням</p>
               <div className="mt-2 grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(leadsTimeline.length, 15)}, minmax(0,1fr))` }}>
                 {leadsTimeline.slice(-15).map((item) => (
-                  <div key={item.key} className="rounded-md border border-line bg-white p-1">
+                  <div key={item.key} className="rounded-xl border border-line/90 bg-white p-1 ring-1 ring-black/[0.02]">
                     <div className="h-14 rounded bg-paper p-1">
                       <div className="w-full rounded bg-berry/70" style={{ height: `${Math.max(6, item.leads * 8)}px`, marginTop: "auto" }} />
                     </div>
@@ -730,13 +742,16 @@ export function SellerDashboard() {
             <div className="grid lg:grid-cols-[1fr_340px]">
               <div className="p-5 md:p-7">
                 <Badge tone="dark">Что сделать дальше?</Badge>
-                <h2 className="text-balance mt-4 max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">Сейчас важнее всего наполнить витрину и отправить ссылку первым клиентам.</h2>
+                <h2 className="text-balance mt-5 max-w-2xl text-4xl font-extrabold leading-[1.08] tracking-tight md:text-5xl md:leading-[1.06]">
+                  Сейчас важнее всего наполнить витрину и отправить ссылку первым клиентам.
+                </h2>
                 <p className="mt-4 max-w-xl text-sm leading-6 text-neutral-600">BuildYourStore.ai превращает кабинет в план действий: товары, Telegram, шаринг и улучшение витрины.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {nextActions.map((action) => (
-                    <button key={action.title} type="button" onClick={() => runAction(action.title)} className="focus-ring rounded-xl border border-line bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-neutral-200 hover:shadow-premium">
+                    <button key={action.title} type="button" onClick={() => runAction(action.title)} className="focus-ring group relative overflow-hidden rounded-2xl border border-line/90 bg-white/95 p-4 text-left shadow-sm transition duration-200 ease-premium hover:-translate-y-1 hover:border-sea/20 hover:shadow-premium">
+                      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sea/25 to-transparent opacity-0 transition group-hover:opacity-100" aria-hidden />
                       <div className="flex items-start gap-3">
-                        <span className="grid h-10 w-10 place-items-center rounded-md bg-paper text-sea"><action.icon size={18} /></span>
+                        <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-sea/12 to-berry/8 text-lg text-sea ring-1 ring-sea/10" aria-hidden>{action.icon}</span>
                         <span>
                           <span className="block text-sm font-semibold">{action.title}</span>
                           <span className="mt-1 block text-xs leading-5 text-neutral-500">{action.text}</span>
@@ -746,39 +761,40 @@ export function SellerDashboard() {
                   ))}
                 </div>
               </div>
-              <div className="bg-ink p-4 text-white">
-                <div className="rounded-lg border border-white/10 bg-white/[0.06] p-4">
+              <div className="relative overflow-hidden bg-gradient-to-br from-ink via-[#121826] to-sea p-4 text-white ring-1 ring-white/10">
+                <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-sea/25 blur-3xl" aria-hidden />
+                <div className="relative rounded-2xl border border-white/12 bg-white/[0.07] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold">Публичная ссылка</p>
-                    <StoreIcon size={18} className="text-saffron" />
+                    <span className="text-sm font-bold text-saffron">BS</span>
                   </div>
                   <p className="mt-3 break-all text-lg font-semibold">{storeLink}</p>
                   <div className="mt-4 grid gap-2">
-                    <Link href={storeLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 text-sm font-semibold text-ink transition duration-200 hover:bg-neutral-100">Открыть магазин <ArrowUpRight size={16} /></Link>
-                    <button type="button" onClick={shareStore} className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/12 px-3 text-sm font-semibold transition duration-200 hover:bg-white/10"><Copy size={16} />Скопировать</button>
+                    <Link href={storeLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 text-sm font-semibold text-ink shadow-lg transition duration-200 hover:bg-neutral-100">Открыть магазин <ArrowUpRight size={16} /></Link>
+                    <button type="button" onClick={shareStore} className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/18 bg-white/5 px-3 text-sm font-semibold backdrop-blur-sm transition duration-200 hover:bg-white/12"><Copy size={16} />Скопировать</button>
                   </div>
                 </div>
-                <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.06] p-4">
+                <div className="relative mt-3 rounded-2xl border border-white/12 bg-white/[0.06] p-4 backdrop-blur-sm">
                   <p className="text-sm font-semibold">Быстрые действия</p>
                   <div className="mt-3 grid gap-2">
-                    <Link href="/store/oud-house" className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
+                    <Link href={storeLink} className="flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-white/[0.15]">
                       <ArrowUpRight size={16} />Открыть магазин
                     </Link>
-                    <Link href="/onboarding" className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
+                    <Link href="/onboarding" className="flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-white/[0.15]">
                       <Plus size={16} />Создать магазин
                     </Link>
-                    <Action icon={<Copy size={16} />} label="Скопировать ссылку" onClick={shareStore} />
-                    <Action icon={<Sparkles size={16} />} label="Улучшить витрину с AI" onClick={createAIProduct} />
-                    <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
-                      <ImagePlus size={16} />Обложка витрины
+                    <Action icon="🔗" label="Скопировать ссылку" onClick={shareStore} />
+                    <Action icon="✨" label="Улучшить витрину с AI" onClick={createAIProduct} />
+                    <label className="flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-white/[0.15]">
+                      🖼️ Обложка витрины
                       <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => event.target.files?.[0] && uploadStoreCover(event.target.files[0])} />
                     </label>
-                    <label className="flex h-10 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold transition hover:bg-white/[0.15]">
-                      <ImagePlus size={16} />Добавить фото
+                    <label className="flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-white/[0.15]">
+                      🖼️ Добавить фото
                       <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => products[0] && event.target.files?.[0] && uploadImageForProduct(products[0], event.target.files[0])} />
                     </label>
-                    <Action icon={<MessageCircle size={16} />} label="Подключить Telegram" onClick={connectTelegram} />
-                    <Action icon={<Wand2 size={16} />} label="Экспорт в CSV" onClick={exportLeadsCsv} />
+                    <Action icon="💬" label="Подключить Telegram" onClick={connectTelegram} />
+                    <Action icon="📄" label="Экспорт в CSV" onClick={exportLeadsCsv} />
                   </div>
                 </div>
               </div>
@@ -796,7 +812,7 @@ export function SellerDashboard() {
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
               <Input value={leadQuery} placeholder="Поиск по клиенту, телефону или тексту" onChange={(event) => setLeadQuery(event.target.value)} />
-              <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-xs font-semibold">
+              <div className="inline-flex rounded-xl border border-line/90 bg-paper p-1 text-xs font-semibold ring-1 ring-black/[0.02]">
                 {[
                   { key: "all", label: "Все" },
                   { key: "new", label: "Новые" },
@@ -807,7 +823,7 @@ export function SellerDashboard() {
                     key={item.key}
                     type="button"
                     onClick={() => setLeadFilter(item.key as "all" | "new" | "contacted" | "closed")}
-                    className={`focus-ring rounded-md px-2.5 py-1 transition ${leadFilter === item.key ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
+                    className={`focus-ring rounded-lg px-2.5 py-1 transition duration-200 ease-premium ${leadFilter === item.key ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
                   >
                     {item.label}
                   </button>
@@ -819,7 +835,7 @@ export function SellerDashboard() {
                 <EmptyState
                   title="Поделитесь магазином, чтобы получить первый заказ"
                   text="Скопируйте ссылку и отправьте ее клиентам в Telegram, WhatsApp или Instagram."
-                  action={<Button onClick={shareStore} variant="secondary"><Share2 size={16} />Поделиться ссылкой</Button>}
+                  action={<Button onClick={shareStore} variant="secondary">Поделиться ссылкой</Button>}
                 />
               ) : visibleLeads.length === 0 ? (
                 <EmptyState
@@ -828,7 +844,7 @@ export function SellerDashboard() {
                   action={<Button onClick={() => { setLeadQuery(""); setLeadFilter("all"); }} variant="secondary">Сбросить фильтры</Button>}
                 />
               ) : (
-                <div className="overflow-hidden rounded-xl border border-line">
+                <div className="overflow-hidden rounded-xl border border-line/90 ring-1 ring-black/[0.02]">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-paper text-xs font-semibold text-neutral-500">
                       <tr>
@@ -841,7 +857,7 @@ export function SellerDashboard() {
                     </thead>
                     <tbody>
                       {visibleLeads.slice(0, 8).map((lead) => (
-                        <tr key={lead.id} className="border-t border-line bg-white">
+                        <tr key={lead.id} className="border-t border-line/90 bg-white">
                           <td className="px-3 py-2 font-semibold">{lead.customer_name}</td>
                           <td className="px-3 py-2 text-xs text-neutral-500">{lead.phone}</td>
                           <td className="px-3 py-2">
@@ -851,7 +867,7 @@ export function SellerDashboard() {
                                 value={lead.status}
                                 onChange={(event) => changeLeadStatus(lead, event.target.value as "new" | "contacted" | "closed")}
                                 disabled={leadUpdatingId === lead.id}
-                                className={`h-8 rounded-md border px-2 text-xs font-semibold disabled:opacity-60 ${leadSelectClass(lead.status)}`}
+                                className={`h-8 rounded-lg border px-2 text-xs font-semibold transition duration-200 ease-premium disabled:opacity-60 ${leadSelectClass(lead.status)}`}
                               >
                                 <option value="new">Новая</option>
                                 <option value="contacted">В работе</option>
@@ -878,7 +894,7 @@ export function SellerDashboard() {
           <div ref={aiRef}>
           <Card className="p-5">
             <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-lg bg-berry/10 text-berry"><Bot size={20} /></span>
+              <span className="grid h-11 w-11 place-items-center rounded-lg bg-berry/10 text-xl text-berry" aria-hidden>✨</span>
               <div>
                 <h2 className="text-xl font-semibold">AI подсказывает, как получить больше заказов</h2>
                 <p className="mt-2 text-sm leading-6 text-neutral-600">Следующий лучший шаг: показать 3 товара, добавить доверие и отправить ссылку в Telegram.</p>
@@ -888,7 +904,7 @@ export function SellerDashboard() {
               {aiText || "Добавьте подарочный набор или популярный товар в hero, включите отзывы и сделайте CTA “Заказать в Telegram” первым действием на мобильном."}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button onClick={createAIProduct}><Sparkles size={17} />Получить рекомендацию</Button>
+              <Button onClick={createAIProduct}>Получить рекомендацию</Button>
               <Button variant="secondary" onClick={shareStore}><Send size={17} />Отправить ссылку</Button>
             </div>
           </Card>
@@ -902,14 +918,14 @@ export function SellerDashboard() {
                 <p className="mt-1 text-sm text-neutral-500">Добавьте первый товар и начните принимать заявки</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setCreateModalOpen(true)}><ImagePlus size={16} />Добавить вручную</Button>
+                <Button variant="secondary" onClick={() => setCreateModalOpen(true)}>Добавить вручную</Button>
                 <Button variant="dark" onClick={createAIProduct}><Plus size={16} />AI-товар</Button>
               </div>
             </div>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <div className="md:col-span-2 xl:col-span-3 grid gap-2 md:grid-cols-[1fr_auto]">
                 <Input value={productQuery} placeholder="Поиск товара по названию или описанию" onChange={(event) => setProductQuery(event.target.value)} />
-                <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-xs font-semibold">
+                <div className="inline-flex rounded-xl border border-line/90 bg-paper p-1 text-xs font-semibold ring-1 ring-black/[0.02]">
                   {[
                     { key: "all", label: "Все" },
                     { key: "active", label: "Активные" },
@@ -919,7 +935,7 @@ export function SellerDashboard() {
                       key={item.key}
                       type="button"
                       onClick={() => setProductFilter(item.key as "all" | "active" | "draft")}
-                      className={`focus-ring rounded-md px-2.5 py-1 transition ${productFilter === item.key ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
+                      className={`focus-ring rounded-lg px-2.5 py-1 transition duration-200 ease-premium ${productFilter === item.key ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}
                     >
                       {item.label}
                     </button>
@@ -927,7 +943,7 @@ export function SellerDashboard() {
                 </div>
               </div>
               {coverImage && (
-                <div className="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border border-line">
+                <div className="md:col-span-2 xl:col-span-3 overflow-hidden rounded-xl border border-line/90 ring-1 ring-black/[0.02]">
                   <div className="h-36 w-full bg-cover bg-center" style={{ backgroundImage: `url(${coverImage})` }} aria-label="Обложка витрины" role="img" />
                 </div>
               )}
@@ -944,13 +960,12 @@ export function SellerDashboard() {
                     <select
                       value={(product as Product & { status?: string }).status || "active"}
                       onChange={(event) => changeProductStatus(product, event.target.value as "active" | "draft")}
-                      className="h-10 rounded-xl border border-line bg-white px-2 text-xs font-semibold"
+                      className="h-10 rounded-xl border border-line/90 bg-white px-2 text-xs font-semibold transition duration-200 ease-premium"
                     >
                       <option value="active">Активный</option>
                       <option value="draft">Черновик</option>
                     </select>
-                    <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold transition hover:bg-paper">
-                      <ImagePlus size={15} />
+                    <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-line/90 bg-white px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-paper">
                       {uploadingProductId === product.id ? "Загрузка..." : "Фото"}
                       <input
                         type="file"
@@ -971,16 +986,16 @@ export function SellerDashboard() {
           <Card className="p-4 md:hidden">
             <h2 className="text-base font-semibold">Telegram статус</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-600">{telegram === "connected" ? "Уведомления активны" : "Подключите Telegram, чтобы получать заказы быстрее."}</p>
-            <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full"><MessageCircle size={17} />Подключить Telegram</Button>
+            <Button onClick={connectTelegram} variant="secondary" className="mt-4 w-full">Подключить Telegram</Button>
           </Card>
         </div>
       </section>
 
-      <nav className="fixed bottom-3 left-1/2 z-30 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 justify-between rounded-2xl border border-line bg-white/95 p-2 shadow-premium backdrop-blur md:hidden">
-        <button type="button" onClick={() => jumpTo("overview")} className={`focus-ring grid gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${activePanel === "overview" ? "bg-ink text-white" : "text-neutral-600 hover:bg-neutral-100"}`}><TrendingUp size={18} className="mx-auto" />Обзор</button>
-        <button type="button" onClick={() => jumpTo("products")} className={`focus-ring grid gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${activePanel === "products" ? "bg-ink text-white" : "text-neutral-600 hover:bg-neutral-100"}`}><Boxes size={18} className="mx-auto" />Товары</button>
-        <button type="button" onClick={() => jumpTo("leads")} className={`focus-ring grid gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${activePanel === "leads" ? "bg-ink text-white" : "text-neutral-600 hover:bg-neutral-100"}`}><PackageCheck size={18} className="mx-auto" />Заявки</button>
-        <button type="button" onClick={() => jumpTo("ai")} className={`focus-ring grid gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${activePanel === "ai" ? "bg-ink text-white" : "text-neutral-600 hover:bg-neutral-100"}`}><Sparkles size={18} className="mx-auto" />AI</button>
+      <nav aria-label="Нижняя навигация кабинета" className="fixed bottom-3 left-1/2 z-30 flex w-[calc(100%-24px)] max-w-md -translate-x-1/2 justify-between rounded-2xl border border-line/80 bg-white/92 p-2 shadow-[0_24px_80px_rgba(10,13,18,0.14)] ring-1 ring-white/70 backdrop-blur-xl md:hidden">
+        <button type="button" onClick={() => jumpTo("overview")} className={`focus-ring grid gap-0.5 rounded-xl px-2 py-2 text-[11px] font-bold transition ${activePanel === "overview" ? "bg-gradient-to-r from-ink to-sea text-white shadow-md" : "text-neutral-600 hover:bg-paper"}`}><span className="mx-auto">📈</span>Обзор</button>
+        <button type="button" onClick={() => jumpTo("products")} className={`focus-ring grid gap-0.5 rounded-xl px-2 py-2 text-[11px] font-bold transition ${activePanel === "products" ? "bg-gradient-to-r from-ink to-sea text-white shadow-md" : "text-neutral-600 hover:bg-paper"}`}><span className="mx-auto">📦</span>Товары</button>
+        <button type="button" onClick={() => jumpTo("leads")} className={`focus-ring grid gap-0.5 rounded-xl px-2 py-2 text-[11px] font-bold transition ${activePanel === "leads" ? "bg-gradient-to-r from-ink to-sea text-white shadow-md" : "text-neutral-600 hover:bg-paper"}`}><span className="mx-auto">🧾</span>Заявки</button>
+        <button type="button" onClick={() => jumpTo("ai")} className={`focus-ring grid gap-0.5 rounded-xl px-2 py-2 text-[11px] font-bold transition ${activePanel === "ai" ? "bg-gradient-to-r from-ink to-sea text-white shadow-md" : "text-neutral-600 hover:bg-paper"}`}><span className="mx-auto">✨</span>AI</button>
       </nav>
 
       <Modal title="Редактировать товар" open={Boolean(editingProduct)} onClose={() => !saving && setEditingProduct(null)}>
@@ -997,9 +1012,9 @@ export function SellerDashboard() {
 
       <Modal title={authMode === "login" ? "Вход в аккаунт" : "Создание аккаунта"} open={authModalOpen} onClose={() => !authLoading && setAuthModalOpen(false)}>
         <div className="space-y-3">
-          <div className="inline-flex rounded-lg border border-line bg-paper p-1 text-sm font-semibold">
-            <button type="button" onClick={() => setAuthMode("login")} className={`focus-ring rounded-md px-3 py-1 transition ${authMode === "login" ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}>Войти</button>
-            <button type="button" onClick={() => setAuthMode("register")} className={`focus-ring rounded-md px-3 py-1 transition ${authMode === "register" ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}>Регистрация</button>
+          <div className="inline-flex rounded-xl border border-line/90 bg-paper p-1 text-sm font-semibold ring-1 ring-black/[0.02]">
+            <button type="button" onClick={() => setAuthMode("login")} className={`focus-ring rounded-lg px-3 py-1 transition duration-200 ease-premium ${authMode === "login" ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}>Войти</button>
+            <button type="button" onClick={() => setAuthMode("register")} className={`focus-ring rounded-lg px-3 py-1 transition duration-200 ease-premium ${authMode === "register" ? "bg-white shadow-sm" : "text-neutral-500 hover:text-ink"}`}>Регистрация</button>
           </div>
           <Input value={authEmail} placeholder="Email" onChange={(event) => setAuthEmail(event.target.value)} />
           <Input type="password" value={authPassword} placeholder="Пароль (минимум 8 символов)" onChange={(event) => setAuthPassword(event.target.value)} />
@@ -1012,19 +1027,19 @@ export function SellerDashboard() {
       <Modal title="Детали заявки" open={Boolean(leadModal)} onClose={() => setLeadModal(null)}>
         {leadModal && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-line bg-paper p-3 text-sm">
+            <div className="rounded-xl border border-line/90 bg-paper p-3 text-sm ring-1 ring-black/[0.02]">
               <p><span className="font-semibold">Клиент:</span> {leadModal.customer_name}</p>
               <p><span className="font-semibold">Контакт:</span> {leadModal.phone}</p>
               <p><span className="font-semibold">Сообщение:</span> {leadModal.message || "—"}</p>
             </div>
             <textarea
-              className="h-24 w-full rounded-xl border border-line bg-white p-3 text-sm"
+              className="h-24 w-full rounded-xl border border-line/90 bg-white p-3 text-sm transition duration-200 ease-premium"
               placeholder="Комментарий менеджера"
               value={leadComment}
               onChange={(event) => setLeadComment(event.target.value)}
             />
             <Button variant="secondary" onClick={saveLeadComment}>Сохранить комментарий</Button>
-            <div className="rounded-xl border border-line bg-paper p-3">
+            <div className="rounded-xl border border-line/90 bg-paper p-3 ring-1 ring-black/[0.02]">
               <p className="text-sm font-semibold">История статусов</p>
               <div className="mt-2 space-y-1 text-xs text-neutral-600">
                 {(leadModal.status_history || []).length === 0 ? (
@@ -1052,7 +1067,7 @@ export function SellerDashboard() {
                 key={preset.title}
                 type="button"
                 onClick={() => setCreateForm({ title: preset.title, price: preset.price, description: preset.description })}
-                className="rounded-lg border border-line bg-paper px-2.5 py-1 text-xs font-semibold text-neutral-600 transition hover:bg-white"
+                className="rounded-xl border border-line/90 bg-paper px-2.5 py-1 text-xs font-semibold text-neutral-600 transition duration-200 ease-premium hover:bg-white"
               >
                 {preset.title}
               </button>
@@ -1061,8 +1076,7 @@ export function SellerDashboard() {
           <Input value={createForm.title} placeholder="Название товара" onChange={(event) => setCreateForm((prev) => ({ ...prev, title: event.target.value }))} />
           <Input value={createForm.description} placeholder="Описание товара" onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))} />
           <Input type="number" min={1} value={createForm.price} placeholder="Цена в рублях" onChange={(event) => setCreateForm((prev) => ({ ...prev, price: event.target.value }))} />
-          <label className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white text-sm font-semibold transition hover:bg-paper">
-            <ImagePlus size={16} />
+          <label className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line/90 bg-white text-sm font-semibold transition duration-200 ease-premium hover:bg-paper">
             {createImageFile ? `Файл: ${createImageFile.name}` : "Загрузить фото товара"}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => setCreateImageFile(event.target.files?.[0] || null)} />
           </label>
@@ -1076,8 +1090,8 @@ export function SellerDashboard() {
   );
 }
 
-function Action({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="focus-ring flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 hover:bg-white/[0.15]">{icon}{label}</button>;
+function Action({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className="focus-ring flex h-10 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold transition duration-200 ease-premium hover:bg-white/[0.15]"><span aria-hidden>{icon}</span>{label}</button>;
 }
 
 function leadStatusLabel(status: string) {
@@ -1107,5 +1121,5 @@ function leadSelectClass(status: string) {
   if (status === "new") return "border-emerald-300 bg-emerald-50 text-emerald-800";
   if (status === "contacted") return "border-sky-300 bg-sky-50 text-sky-800";
   if (status === "closed") return "border-slate-300 bg-slate-100 text-slate-700";
-  return "border-line bg-white text-neutral-700";
+  return "border-line/90 bg-white text-neutral-700";
 }

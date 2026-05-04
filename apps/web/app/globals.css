@@ -4,18 +4,20 @@
 
 :root {
   color-scheme: light;
-  --color-ink: #0d1117;
-  --color-muted: #667085;
-  --color-paper: #f5f7fb;
+  --color-ink: #0a0d12;
+  --color-muted: #5c6578;
+  --color-paper: #eef2f9;
   --color-surface: #ffffff;
-  --color-line: #e4e8f0;
-  --color-sea: #247c8d;
-  --color-mint: #4f9f73;
-  --color-berry: #92385f;
-  --color-saffron: #d99a2b;
-  --radius: 8px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --color-line: #dfe5ef;
+  --color-sea: #1d6f82;
+  --color-mint: #3d8f62;
+  --color-berry: #8b3258;
+  --color-saffron: #c9891f;
+  --color-glow-sea: rgba(29, 111, 130, 0.45);
+  --color-glow-berry: rgba(139, 50, 88, 0.35);
+  --radius: 10px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   background: var(--color-paper);
   color: var(--color-ink);
 }
@@ -30,17 +32,33 @@ html {
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 18% -8%, rgba(36, 124, 141, 0.14), transparent 27rem),
-    radial-gradient(circle at 84% 8%, rgba(217, 154, 43, 0.11), transparent 24rem),
-    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(146, 56, 95, 0.06), transparent 55%),
-    linear-gradient(180deg, #ffffff 0%, #f5f7fb 34rem, #f5f7fb 100%);
+  font-feature-settings: "kern" 1, "liga" 1;
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(ellipse 100% 80% at 50% -30%, rgba(255, 255, 255, 0.85), transparent 45%),
+    radial-gradient(980px 480px at 8% 0%, rgba(29, 111, 130, 0.2), transparent 52%),
+    radial-gradient(820px 440px at 96% 8%, rgba(201, 137, 31, 0.14), transparent 48%),
+    radial-gradient(720px 400px at 72% 96%, rgba(139, 50, 88, 0.1), transparent 50%),
+    radial-gradient(600px 320px at 18% 88%, rgba(29, 111, 130, 0.06), transparent 55%),
+    linear-gradient(180deg, #fbfdff 0%, var(--color-paper) 32rem, var(--color-paper) 100%);
   color: var(--color-ink);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: -0.01em;
-  line-height: 1.5;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+  line-height: 1.55;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Киношное зерно + глубина страницы (pointer-events: none — не мешает UI) */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
 button,
@@ -59,7 +77,8 @@ img {
 }
 
 ::selection {
-  background: rgba(217, 154, 43, 0.28);
+  background: rgba(29, 111, 130, 0.18);
+  color: var(--color-ink);
 }
 
 .focus-ring {
@@ -75,7 +94,7 @@ img {
 a:focus-visible {
   outline: 2px solid var(--color-sea);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
 }
 
 details summary:focus-visible {
@@ -95,15 +114,41 @@ details summary:focus-visible {
 
 .premium-grid {
   background-image:
-    linear-gradient(rgba(13, 17, 23, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(13, 17, 23, 0.035) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(rgba(13, 17, 23, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 17, 23, 0.028) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .glass-panel {
-  border: 1px solid rgba(228, 232, 240, 0.82);
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(20px);
+  border: 1px solid color-mix(in srgb, var(--color-line) 90%, transparent);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(22px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 1px 2px rgba(10, 13, 18, 0.04);
+}
+
+.surface-elevated {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 2px 6px rgba(10, 13, 18, 0.03),
+    0 32px 88px rgba(10, 13, 18, 0.075),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Медленное свечение за hero-колонкой (landing) */
+.hero-ambient {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: heroAmbient 18s ease-in-out infinite;
+}
+
+@keyframes heroAmbient {
+  0%, 100% { opacity: 0.55; transform: translate(0, 0) scale(1); }
+  40% { opacity: 0.85; transform: translate(4%, -3%) scale(1.08); }
+  70% { opacity: 0.65; transform: translate(-3%, 4%) scale(0.96); }
 }
 
 .hero-vignette {
@@ -199,12 +244,22 @@ details summary:focus-visible {
   .animate-rise,
   .animate-reveal,
   .animate-soft-pulse,
+  .animate-ping,
   .loading-shimmer,
-  .confetti-piece {
+  .confetti-piece,
+  .hero-ambient {
     animation: none !important;
+  }
+
+  body::after {
+    opacity: 0.02;
   }
 
   .skip-link {
     transition: none;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
   }
 }

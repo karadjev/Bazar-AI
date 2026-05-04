@@ -1,0 +1,31 @@
+name: Deploy Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Preflight (staging/prod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deploy scripts syntax
+        run: |
+          bash -n deployments/scripts/preflight.sh
+          bash -n deployments/scripts/autofix-env.sh
+          bash -n deployments/scripts/preflight-ci-fixtures.sh
+
+      - name: Run preflight fixtures
+        run: bash deployments/scripts/preflight-ci-fixtures.sh

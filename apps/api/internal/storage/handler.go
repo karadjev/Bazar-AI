@@ -45,7 +45,7 @@ func NewMinIOHandler(repo *platform.Repository, dir, baseURL, endpoint, accessKe
 func (h Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "image is too large")
+		httpx.ErrorWithRequest(w, r, http.StatusRequestEntityTooLarge, "payload_too_large", "image is too large")
 		return
 	}
 	file, header, err := r.FormFile("image")
@@ -72,7 +72,7 @@ func (h Handler) UploadProductImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if int64(len(content)) > maxUploadSize {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "image is too large")
+		httpx.ErrorWithRequest(w, r, http.StatusRequestEntityTooLarge, "payload_too_large", "image is too large")
 		return
 	}
 	name := randomName() + ext

@@ -20,7 +20,7 @@ func NewHandler(repo *platform.Repository) Handler {
 func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req platform.Product
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid product payload")
+		httpx.RespondDecodeError(w, r, err, "invalid product payload")
 		return
 	}
 	req.StoreID = r.PathValue("storeID")
@@ -58,7 +58,7 @@ func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	product, err := h.repo.CreateProduct(r.Context(), req)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not create product")
+		httpx.RespondInfraError(w, r, err, "could not create product")
 		return
 	}
 	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: auth.UserFromRequest(r).ID, Action: "product.created", EntityType: "product", EntityID: product.ID})
@@ -87,7 +87,7 @@ func (h Handler) ListByStore(w http.ResponseWriter, r *http.Request) {
 func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 	product, err := h.repo.ProductByID(r.Context(), r.PathValue("id"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		httpx.RespondInfraError(w, r, err, "product not found")
 		return
 	}
 	if !h.isOwnerStore(r, product.StoreID) {
@@ -105,7 +105,7 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	current, err := h.repo.ProductByID(r.Context(), id)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		httpx.RespondInfraError(w, r, err, "product not found")
 		return
 	}
 	if !h.isOwnerStore(r, current.StoreID) {
@@ -114,7 +114,7 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	var req platform.Product
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid product payload")
+		httpx.RespondDecodeError(w, r, err, "invalid product payload")
 		return
 	}
 	req.ID = id
@@ -140,7 +140,7 @@ func (h Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	updated, err := h.repo.UpdateProduct(r.Context(), req)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "could not update product")
+		httpx.RespondInfraError(w, r, err, "could not update product")
 		return
 	}
 	_ = h.repo.AddAuditLog(r.Context(), platform.AuditLog{UserID: auth.UserFromRequest(r).ID, Action: "product.updated", EntityType: "product", EntityID: updated.ID})
@@ -155,7 +155,7 @@ func (h Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	current, err := h.repo.ProductByID(r.Context(), id)
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "product not found")
+		httpx.RespondInfraError(w, r, err, "product not found")
 		return
 	}
 	if !h.isOwnerStore(r, current.StoreID) {

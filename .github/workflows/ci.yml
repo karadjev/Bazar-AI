@@ -6,10 +6,18 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16.6-alpine
@@ -26,6 +34,12 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: OpenAPI lint
+        working-directory: apps/api
+        run: npx --yes @redocly/cli@1 lint openapi.yaml
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/api/go.mod
@@ -39,6 +53,7 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,4 +68,7 @@ jobs:
         working-directory: apps/web
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_API_URL: "/api"
+          NEXT_PUBLIC_APP_URL: "https://ci.local"
+          NEXT_PUBLIC_SITE_URL: "https://ci.local"
         run: npm run build

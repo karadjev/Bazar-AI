@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"bazar-ai/apps/api/internal/admin"
@@ -30,12 +35,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	initSlog(cfg.AppEnv)
+
+	startupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	db, err := database.Connect(ctx, cfg.DatabaseURL)
+	db, err := database.Connect(startupCtx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("connect postgres: %v", err)
+		slog.Error("connect_postgres_failed", "error", err.Error())
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -46,7 +54,8 @@ func main() {
 	useS3SSL, _ := strconv.ParseBool(cfg.S3UseSSL)
 	storageHandler, err := storage.NewMinIOHandler(repo, cfg.UploadDir, cfg.UploadBaseURL, cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket, useS3SSL)
 	if err != nil {
-		log.Fatalf("init storage: %v", err)
+		slog.Error("init_storage_failed", "error", err.Error())
+		os.Exit(1)
 	}
 	telegramNotifier := telegram.NewBotNotifier(cfg.TelegramBot)
 	orderHandler := orders.NewHandler(repo, telegramNotifier, cfg.PublicAppURL)
@@ -62,7 +71,24 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "bazar-ai-api"})
+		httpx.JSON(w, http.StatusOK, map[string]any{
+			"status":  "ok",
+			"service": "bazar-ai-api",
+			"version": buildVersion,
+		})
+	})
+	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := db.Ping(ctx); err != nil {
+			slog.Warn("readiness_check_failed", "error", err.Error())
+			httpx.JSON(w, http.StatusServiceUnavailable, map[string]any{
+				"status":   "not_ready",
+				"database": "unavailable",
+			})
+			return
+		}
+		httpx.JSON(w, http.StatusOK, map[string]any{"status": "ready"})
 	})
 	mux.Handle("GET /metrics", statusMetrics.Handler())
 
@@ -115,10 +141,63 @@ func main() {
 	mux.HandleFunc("GET /api/store/{slug}", sprintHandler.StoreBySlug)
 	mux.HandleFunc("POST /api/store/{slug}/lead", sprintHandler.CreateLead)
 
-	handler := middleware.StructuredLogger(middleware.RequestID(statusMetrics.Middleware(middleware.NewRateLimiter(120, time.Minute).Middleware(withCORS(mux, cfg.AllowedOrigins)))))
-	server := &http.Server{Addr: cfg.APIAddr, Handler: handler}
-	log.Printf("BuildYourStore.ai API listening on %s (%s)", cfg.APIAddr, cfg.AppEnv)
-	log.Fatal(server.ListenAndServe())
+	core := withCORS(mux, cfg.AllowedOrigins)
+	core = middleware.NewRateLimiter(120, time.Minute, cfg.TrustedProxyNets).Middleware(core)
+	core = middleware.MaxRequestBody(cfg.MaxRequestBodyBytes)(core)
+	core = statusMetrics.Middleware(core)
+	core = middleware.RecoverPanic(core)
+	core = middleware.RequestID(core)
+	core = middleware.SecurityHeaders(core)
+	handler := middleware.StructuredLogger(cfg.TrustedProxyNets)(core)
+	server := &http.Server{
+		Addr:              cfg.APIAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       20 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		slog.Info("api_listen", "addr", cfg.APIAddr, "env", cfg.AppEnv, "version", buildVersion)
+		serverErr <- server.ListenAndServe()
+	}()
+
+	shutdownCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serverErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("api_server_failed", "error", err.Error())
+			os.Exit(1)
+		}
+	case <-shutdownCtx.Done():
+		stop()
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		slog.Info("api_shutdown_begin")
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("api_shutdown_failed", "error", err.Error())
+			os.Exit(1)
+		}
+		if err := <-serverErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("api_server_failed_during_shutdown", "error", err.Error())
+			os.Exit(1)
+		}
+		slog.Info("api_shutdown_complete")
+	}
+}
+
+func initSlog(appEnv string) {
+	level := slog.LevelInfo
+	switch strings.ToLower(strings.TrimSpace(appEnv)) {
+	case "development", "dev", "":
+		level = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 }
 
 func withCORS(next http.Handler, rawAllowedOrigins string) http.Handler {

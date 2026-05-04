@@ -25,12 +25,12 @@ func NewHandler(repo *platform.Repository, notifier telegram.Notifier, appURL st
 func (h Handler) CreatePublic(w http.ResponseWriter, r *http.Request) {
 	store, err := h.repo.StoreBySlug(r.Context(), r.PathValue("slug"))
 	if err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusNotFound, "not_found", "store not found")
+		httpx.RespondInfraError(w, r, err, "store not found")
 		return
 	}
 	var req platform.Order
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid order payload")
+		httpx.RespondDecodeError(w, r, err, "invalid order payload")
 		return
 	}
 	req.StoreID = store.ID

@@ -2,9 +2,24 @@ package httpx
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+// RespondDecodeError отвечает на ошибку [Decode]: 413 для превышения лимита тела, иначе 400 с validation_error.
+func RespondDecodeError(w http.ResponseWriter, r *http.Request, err error, badRequestMessage string) {
+	var maxErr *http.MaxBytesError
+	if errors.As(err, &maxErr) {
+		ErrorWithRequest(w, r, http.StatusRequestEntityTooLarge, "payload_too_large", "request body too large")
+		return
+	}
+	ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", badRequestMessage)
+}
 
 type ErrorResponse struct {
 	Error ErrorBody `json:"error"`
@@ -41,14 +56,30 @@ func ErrorWithRequest(w http.ResponseWriter, r *http.Request, status int, code, 
 	ErrorCode(w, status, code, message, r.Header.Get("X-Request-Id"))
 }
 
+// RespondInfraError нормализует инфраструктурные ошибки (DB/driver) в единый HTTP-контракт.
+func RespondInfraError(w http.ResponseWriter, r *http.Request, err error, fallbackMessage string) {
+	status, code := infraErrorMapping(err)
+	ErrorWithRequest(w, r, status, code, fallbackMessage)
+}
+
 func ErrorCode(w http.ResponseWriter, status int, code, message, requestID string) {
 	JSON(w, status, ErrorResponse{Error: ErrorBody{Code: code, Message: message, RequestID: requestID}})
 }
 
 func Decode(r *http.Request, target any) error {
+	if r.Body == nil {
+		return errors.New("request body is required")
+	}
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-	return decoder.Decode(target)
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var extra struct{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return errors.New("request body must contain a single JSON value")
+	}
+	return nil
 }
 
 func Page(r *http.Request) (int, int) {
@@ -86,6 +117,8 @@ func codeForStatus(status int) string {
 		return "quota_exceeded"
 	case http.StatusTooManyRequests:
 		return "rate_limited"
+	case http.StatusRequestEntityTooLarge:
+		return "payload_too_large"
 	case http.StatusBadGateway:
 		return "upstream_error"
 	default:
@@ -106,4 +139,23 @@ func queryInt(r *http.Request, key string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+func infraErrorMapping(err error) (int, string) {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return http.StatusNotFound, "not_found"
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23505":
+			return http.StatusConflict, "conflict"
+		case "23503", "23514":
+			return http.StatusBadRequest, "validation_error"
+		}
+		if len(pgErr.Code) == 5 && pgErr.Code[:2] == "22" {
+			return http.StatusBadRequest, "validation_error"
+		}
+	}
+	return http.StatusInternalServerError, "internal_error"
 }

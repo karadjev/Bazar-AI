@@ -4,6 +4,7 @@ services:
   nginx:
     image: nginx:1.27.3-alpine
     restart: unless-stopped
+    stop_grace_period: 30s
     depends_on:
       frontend:
         condition: service_healthy
@@ -46,14 +47,17 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
     expose:
       - "3000"
     networks:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://frontend:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))\""]
       interval: 20s
       timeout: 10s
       retries: 10
@@ -69,6 +73,8 @@ services:
       context: ../apps/api
       dockerfile: Dockerfile
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
     environment:
       APP_ENV: production
       API_ADDR: :8080
@@ -171,7 +177,7 @@ services:
       - internal
     logging: *default_logging
     healthcheck:
-      test: ["CMD-SHELL", "[ -r /proc/1/cmdline ]"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null"]
       interval: 15s
       timeout: 5s
       retries: 5

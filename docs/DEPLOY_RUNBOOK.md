@@ -2,6 +2,22 @@
 
 This runbook is for the current `deployments/docker-compose.prod.yml` stack (`nginx`, `frontend`, `api`, `postgres`, `redis`, `minio`, `rabbitmq`).
 
+## CI/CD Baseline
+
+Required checks for protected branches:
+
+- `Backend` (from `CI`)
+- `Frontend` (from `CI`)
+- `Preflight (staging/prod)` (from `Deploy Guard`)
+
+Recommended branch protection toggles:
+
+- Require pull request before merging
+- Require status checks to pass before merging
+- Require branches to be up to date before merging
+- Do not allow force pushes
+- Do not allow deletions
+
 ## 1) Preflight
 
 Run from project root.
@@ -24,7 +40,7 @@ Validate required env keys quickly:
 
 ```bash
 set -a && source deployments/env/prod.env && set +a
-printf "%s\n" "$APP_DOMAIN" "$POSTGRES_DB" "$POSTGRES_USER" "$JWT_SECRET" "$ALLOWED_ORIGINS" | sed 's/./*/g'
+printf "%s\n" "$APP_DOMAIN" "$POSTGRES_DB" "$POSTGRES_USER" "$JWT_SECRET" "$ALLOWED_ORIGINS" "$NEXT_PUBLIC_SITE_URL" | sed 's/./*/g'
 ```
 
 Render and validate compose:
@@ -52,6 +68,7 @@ Restart nginx after cert issue:
 
 ```bash
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml restart nginx
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -t
 ```
 
 ## 3) Regular deploy
@@ -63,6 +80,7 @@ docker compose --env-file deployments/env/prod.env -f deployments/docker-compose
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml build --pull frontend api
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml --profile ops run --rm migrate
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml up -d
+docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml restart nginx
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -t
 docker compose --env-file deployments/env/prod.env -f deployments/docker-compose.prod.yml exec -T nginx nginx -s reload
 ```
@@ -72,6 +90,8 @@ One-command flow (recommended):
 ```bash
 make prod-ready
 ```
+
+Use `make prod-deploy` for the first deploy before TLS exists, then run `make ssl-init` and `make prod-smoke`. `make prod-ready` is for regular deploys after the HTTPS certificate is already present.
 
 Pipeline-friendly one-liner:
 

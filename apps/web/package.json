@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --turbopack",
+    "build": "rm -rf .next && next build",
     "start": "next start",
     "lint": "next lint",
     "e2e": "playwright test --project=api",
@@ -13,26 +13,25 @@
     "e2e:all": "playwright test"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.62.0",
-    "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-hook-form": "^7.54.0",
-    "zod": "^3.24.0",
-    "zustand": "^5.0.2"
+    "react-dom": "^19.0.0"
+  },
+  "overrides": {
+    "postcss": "8.5.13"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.4",
+    "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
-    "postcss": "^8.4.49",
+    "postcss": "8.5.13",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.0",
-    "@playwright/test": "^1.49.1"
+    "typescript": "^5.7.0"
   }
 }

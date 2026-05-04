@@ -41,7 +41,7 @@ func (h Handler) generate(w http.ResponseWriter, r *http.Request, generationType
 		Input   string `json:"input"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.ErrorWithRequest(w, r, http.StatusBadRequest, "validation_error", "invalid ai payload")
+		httpx.RespondDecodeError(w, r, err, "invalid ai payload")
 		return
 	}
 	user := auth.UserFromRequest(r)
