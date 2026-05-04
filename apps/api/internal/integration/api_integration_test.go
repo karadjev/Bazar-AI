@@ -127,8 +127,8 @@ func TestOnboardingFreePlanAllowsOnlyOneStore(t *testing.T) {
 		t.Fatalf("expected error object, got %+v", secondStore)
 	}
 	code, _ := errorPayload["code"].(string)
-	if code != "request_error" {
-		t.Fatalf("expected request_error code for payment required, got %q", code)
+	if code != "quota_exceeded" {
+		t.Fatalf("expected quota_exceeded code for payment required, got %q", code)
 	}
 }
 

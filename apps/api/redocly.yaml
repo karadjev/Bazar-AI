@@ -1,0 +1,7 @@
+# Redocly CLI: пресет recommended. Запуск: npx @redocly/cli@1 lint openapi.yaml
+extends:
+  - recommended
+
+rules:
+  # В спецификации осознанно указан локальный сервер разработки; prod URL задаётся при деплое.
+  no-server-example.com: off

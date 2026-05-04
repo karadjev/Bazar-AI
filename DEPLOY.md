@@ -60,29 +60,38 @@ cp deployments/env/prod.env.example deployments/env/prod.env
 - `APP_DOMAIN`
 - `LETSENCRYPT_EMAIL`
 - `POSTGRES_PASSWORD`
-- `JWT_SECRET`
+- `JWT_SECRET` (real random value, at least 32 characters)
 - `MINIO_ROOT_PASSWORD`
+- `PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL` (usually `https://APP_DOMAIN`)
+- `UPLOAD_BASE_URL` (usually `https://APP_DOMAIN/uploads`)
 - AI and Telegram secrets
 
-3. Create a temporary certificate so Nginx can start:
+3. Run preflight before touching the server edge:
 
 ```bash
-make ssl-dummy
+make prod-autofix-env
+make prod-preflight
 ```
 
-4. Start production:
+4. Start production and run migrations:
 
 ```bash
-make prod-up
+make prod-deploy
 ```
 
-5. Issue a real Let's Encrypt certificate:
+5. Issue a real Let's Encrypt certificate. This restarts Nginx so it re-renders the HTTPS config:
 
 ```bash
 make ssl-init
 ```
 
-6. Renewal:
+6. Run smoke checks and then enable renewal:
+
+```bash
+make prod-smoke
+```
+
+Renewal:
 
 ```bash
 make ssl-renew

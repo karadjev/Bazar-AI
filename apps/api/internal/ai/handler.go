@@ -41,7 +41,7 @@ func (h Handler) generate(w http.ResponseWriter, r *http.Request, generationType
 		Input   string `json:"input"`
 	}
 	if err := httpx.Decode(r, &req); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "invalid ai payload")
+		httpx.RespondDecodeError(w, r, err, "invalid ai payload")
 		return
 	}
 	user := auth.UserFromRequest(r)
@@ -57,13 +57,13 @@ func (h Handler) generate(w http.ResponseWriter, r *http.Request, generationType
 	if req.UserID != "" {
 		count, err := h.repo.AIGenerationCountThisMonth(r.Context(), req.UserID)
 		if err == nil && count >= limits.AIGenerationLimit {
-			httpx.Error(w, http.StatusPaymentRequired, "AI generation limit exceeded for tariff "+limits.Code)
+			httpx.ErrorWithRequest(w, r, http.StatusPaymentRequired, "quota_exceeded", "AI generation limit exceeded for tariff "+limits.Code)
 			return
 		}
 	}
 	output, provider, err := h.service.Generate(r.Context(), generationType, req.Input)
 	if err != nil {
-		httpx.Error(w, http.StatusBadGateway, "ai provider failed")
+		httpx.ErrorWithRequest(w, r, http.StatusBadGateway, "upstream_error", "ai provider failed")
 		return
 	}
 	generation, err := h.repo.AddGeneration(r.Context(), platform.AIGeneration{
@@ -71,7 +71,7 @@ func (h Handler) generate(w http.ResponseWriter, r *http.Request, generationType
 		Output: output, TokensUsed: estimateTokens(req.Input, output), Provider: provider, Status: "completed", Cost: 0,
 	})
 	if err != nil {
-		httpx.Error(w, http.StatusInternalServerError, "could not save generation")
+		httpx.ErrorWithRequest(w, r, http.StatusInternalServerError, "internal_error", "could not save generation")
 		return
 	}
 	httpx.JSON(w, http.StatusOK, generation)

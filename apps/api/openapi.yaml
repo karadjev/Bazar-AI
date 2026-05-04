@@ -2,93 +2,1933 @@ openapi: 3.0.3
 info:
   title: Bazar AI API
   version: 0.2.0
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  description: |
+    ## Контракт
+    - Тело: один JSON-объект; лишние поля отклоняются (`DisallowUnknownFields`).
+    - Ошибки: обёртка `{"error":{"code","message","request_id"?}}` ([ErrorEnvelope](#/components/schemas/ErrorEnvelope)).
+    - Заголовки: ответ содержит `X-Request-Id`; при необходимости передавайте свой. Для refresh — `X-Device-Id` (опционально, должен совпадать при ротации).
+    - Публичный заказ: заголовок `Idempotency-Key` (опционально) пробрасывается в заказ.
+    - Лимит тела JSON: переменная окружения `API_MAX_BODY_BYTES` (по умолчанию 1 MiB). `multipart/*` на этом middleware не режется — отдельные лимиты в обработчиках (например 5 MiB для картинок).
+    - Rate limit: **120** запросов / минуту с одного IP (код `rate_limited`, HTTP **429**).
+    - CORS: если `ALLOWED_ORIGINS` не `*`, запросы с неразрешённого `Origin` → **403** `forbidden`.
+
+tags:
+  - name: System
+    description: Health, readiness, metrics
+  - name: Auth
+    description: Регистрация, сессии, JWT
+  - name: Onboarding
+    description: Первый магазин после регистрации
+  - name: Stores
+    description: CRUD магазинов продавца
+  - name: Products
+    description: Товары и изображения
+  - name: Public
+    description: Витрина и гостевой заказ без JWT
+  - name: Orders
+    description: Заказы продавца и уведомления
+  - name: Telegram
+    description: Интеграция с ботом
+  - name: AI
+    description: Генерации через внешний провайдер
+  - name: Admin
+    description: Только роль `admin`
+  - name: Dashboard
+    description: Legacy sprint API (`/api/dashboard`, `/api/store`, …)
+
 servers:
   - url: http://localhost:8080
+    description: Локальная разработка
+
+# По умолчанию все операции требуют Bearer JWT; публичные переопределяют через security: []
+security:
+  - bearerAuth: []
+
 paths:
   /health:
     get:
+      security: []
+      operationId: healthCheck
+      tags: [System]
+      summary: Liveness probe
+      description: Не проверяет БД. Поле `version` задаётся при сборке (`-ldflags`).
       responses:
-        "200": { description: OK }
+        "200":
+          description: Сервис жив
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /ready:
+    get:
+      security: []
+      operationId: readinessCheck
+      tags: [System]
+      summary: Readiness probe
+      description: Проверяет PostgreSQL (`Ping`, таймаут контекста ~2s).
+      responses:
+        "200":
+          description: БД доступна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyOKResponse"
+        "503":
+          description: БД недоступна
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyNotReadyResponse"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /metrics:
+    get:
+      security: []
+      operationId: prometheusMetrics
+      tags: [System]
+      summary: Prometheus metrics
+      description: Без аутентификации — ограничивайте доступ сетью/VPN.
+      responses:
+        "200":
+          description: text/plain exposition format
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /api/v1/auth/register:
     post:
+      security: []
+      operationId: authRegister
+      tags: [Auth]
       summary: Register seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterRequest"
+            example:
+              email: seller@example.com
+              password: secret42x
       responses:
-        "200": { description: Token pair }
+        "200":
+          description: Пользователь (без пароля) и пара токенов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenWithUser"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/auth/login:
     post:
+      security: []
+      operationId: authLogin
+      tags: [Auth]
       summary: Login seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLoginRequest"
       responses:
-        "200": { description: Token pair }
+        "200":
+          description: Пользователь и пара токенов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenWithUser"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/refresh:
+    post:
+      security: []
+      operationId: authRefresh
+      tags: [Auth]
+      summary: Refresh access token
+      description: Опциональный заголовок `X-Device-Id` должен совпадать с сохранённым для refresh-токена.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRefreshRequest"
+      responses:
+        "200":
+          description: Новая пара токенов (без объекта `user`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokenPair"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/auth/logout:
     post:
+      security: []
+      operationId: authLogout
+      tags: [Auth]
       summary: Revoke refresh token
+      description: |
+        `all: true` отзывает все сессии, но тогда нужен **Bearer** в заголовке (как у `logout-all`).
+        Иначе укажите `refresh_token`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthLogoutRequest"
       responses:
-        "200": { description: Logged out }
+        "200":
+          description: Сессия завершена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedOutStatus"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/logout-all:
+    post:
+      operationId: authLogoutAll
+      tags: [Auth]
+      summary: Revoke all refresh tokens for current user
+      responses:
+        "200":
+          description: Все сессии отозваны
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedOutStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/me:
+    get:
+      operationId: authMe
+      tags: [Auth]
+      summary: Current user profile
+      responses:
+        "200":
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWrapped"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/onboarding/complete:
     post:
-      security: [{ bearerAuth: [] }]
+      operationId: onboardingComplete
+      tags: [Onboarding]
       summary: Complete onboarding and create public store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingCompleteRequest"
       responses:
-        "201": { description: Store with public URL }
+        "201":
+          description: Магазин и публичный URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingCompleteResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/stores:
+    post:
+      operationId: createStore
+      tags: [Stores]
+      summary: Create store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreCreateRequest"
+      responses:
+        "201":
+          description: Магазин создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/stores/me:
     get:
-      security: [{ bearerAuth: [] }]
-      summary: Seller stores
+      operationId: listMyStores
+      tags: [Stores]
+      summary: Seller stores (paged)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Stores }
+        "200":
+          description: Пагинированный список магазинов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponseStores"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/stores/{id}:
+    get:
+      operationId: getStoreById
+      tags: [Stores]
+      summary: Store by id
+      parameters:
+        - $ref: "#/components/parameters/StoreId"
+      responses:
+        "200":
+          description: Объект магазина
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/stores/{storeID}/products:
     get:
-      security: [{ bearerAuth: [] }]
+      operationId: listStoreProducts
+      summary: List products by store
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Products }
+        "200":
+          description: Пагинированный список товаров
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponseProducts"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
-      security: [{ bearerAuth: [] }]
+      operationId: createStoreProduct
+      summary: Create product in store
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
+      requestBody:
+        required: true
+        description: Поле `store_id` в теле перезаписывается из path.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductWriteRequest"
       responses:
-        "201": { description: Product }
-  /api/v1/public/stores/{slug}:
+        "201":
+          description: Товар создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/products/{id}:
     get:
-      summary: Public storefront data
+      operationId: getProductById
+      summary: Get product by id
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
       responses:
-        "200": { description: Storefront }
-  /api/v1/public/stores/{slug}/orders:
-    post:
-      summary: Guest checkout
+        "200":
+          description: Объект товара
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      operationId: updateProduct
+      summary: Update product
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductWriteRequest"
       responses:
-        "201": { description: Order }
-  /api/v1/stores/{storeID}/orders:
-    get:
-      security: [{ bearerAuth: [] }]
+        "200":
+          description: Обновлённый товар
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      operationId: deleteProduct
+      summary: Delete product
+      tags: [Products]
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
       responses:
-        "200": { description: Orders }
-  /api/v1/orders/{id}/notifications:
-    get:
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200": { description: Notification jobs for order }
+        "200":
+          description: Товар удалён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDeletedStatus"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/products/{id}/images:
     post:
-      security: [{ bearerAuth: [] }]
-      summary: Upload product image with MIME and size validation
+      operationId: uploadProductImage
+      tags: [Products]
+      summary: Upload product image (multipart, поле `image`)
+      description: Лимит тела ~5 MiB; глобальный JSON MaxBytes на этом маршруте не применяется.
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
       responses:
-        "201": { description: Uploaded image URL and preview URL }
+        "201":
+          description: URL загруженного изображения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/uploads/images:
+    post:
+      operationId: uploadImageAlias
+      tags: [Products]
+      summary: Upload image (multipart, alias)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: URL загруженного изображения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/public/stores/{slug}:
+    get:
+      security: []
+      operationId: getPublicStorefront
+      tags: [Public]
+      summary: Public storefront data
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: Витрина, товары и SEO-мета
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStorefront"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/public/stores/{slug}/orders:
+    post:
+      security: []
+      operationId: createPublicOrder
+      tags: [Public]
+      summary: Guest checkout
+      description: Заголовок `Idempotency-Key` необязателен; сохраняется в заказе.
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCreateRequest"
+      responses:
+        "201":
+          description: Созданный заказ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/stores/{storeID}/orders:
+    get:
+      operationId: listStoreOrders
+      summary: List orders for store
+      tags: [Orders]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Пагинированный список заказов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponseOrders"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/orders/{id}/notifications:
+    get:
+      operationId: listOrderNotifications
+      summary: Notification jobs for order
+      tags: [Orders]
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: Очередь уведомлений по заказу
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationJob"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/stores/{storeID}/telegram/connect-code:
     post:
-      security: [{ bearerAuth: [] }]
+      operationId: createTelegramConnectCode
+      summary: Issue Telegram pairing code
+      tags: [Telegram]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
       responses:
-        "201": { description: Telegram connect code }
+        "201":
+          description: Код и инструкция для бота
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramConnectCodeResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/stores/{storeID}/telegram/status:
+    get:
+      operationId: getTelegramStatus
+      summary: Telegram connection status
+      tags: [Telegram]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
+      responses:
+        "200":
+          description: >-
+            Подключено — объект TelegramConnection; иначе только status not_connected.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/TelegramConnection"
+                  - $ref: "#/components/schemas/TelegramNotConnected"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/stores/{storeID}/telegram/test:
+    post:
+      operationId: sendTelegramTestMessage
+      summary: Send test order to Telegram
+      tags: [Telegram]
+      parameters:
+        - $ref: "#/components/parameters/StoreID"
+      responses:
+        "200":
+          description: Тестовое сообщение отправлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramTestSent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/telegram/webhook:
     post:
+      security: []
+      operationId: telegramWebhook
+      tags: [Telegram]
       summary: Telegram Bot API webhook
+      description: Подмножество Update Bot API; успех — `connected` или `ignored`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramWebhookUpdate"
       responses:
-        "200": { description: Webhook handled }
+        "200":
+          description: Успешная обработка
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramWebhookAck"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/ai/generate-store:
+    post:
+      operationId: aiGenerateStore
+      tags: [AI]
+      summary: AI generate store content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIGenerateRequest"
+      responses:
+        "200":
+          description: Сохранённая запись генерации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGeneration"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/ai/generate-product:
     post:
-      security: [{ bearerAuth: [] }]
+      operationId: aiGenerateProduct
+      summary: AI generate product copy
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIGenerateRequest"
       responses:
-        "200": { description: AI generation }
+        "200":
+          description: Сохранённая запись генерации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGeneration"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/ai/generate-seo:
+    post:
+      operationId: aiGenerateSeo
+      summary: AI generate SEO text
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIGenerateRequest"
+      responses:
+        "200":
+          description: Сохранённая запись генерации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGeneration"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/ai/generate-marketing:
+    post:
+      operationId: aiGenerateMarketing
+      summary: AI generate marketing copy
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIGenerateRequest"
+      responses:
+        "200":
+          description: Сохранённая запись генерации
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGeneration"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/QuotaExceeded"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/admin/stats:
+    get:
+      operationId: adminStats
+      tags: [Admin]
+      summary: Admin statistics
+      description: Требуется JWT с ролью `admin`; иначе **403** `forbidden`.
+      responses:
+        "200":
+          description: Агрегированная статистика
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/onboarding/create-store:
+    post:
+      security: []
+      operationId: sprintOnboardingCreateStore
+      tags: [Dashboard]
+      summary: Create store (sprint onboarding)
+      description: |
+        Контекст владельца: **Bearer** JWT или гостевой режим (`?guest=1` / `X-Guest-Mode: 1`).
+        Без контекста → **401** `unauthorized`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SprintOnboardingCreateRequest"
+      responses:
+        "201":
+          description: Магазин и флаг guest_mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SprintOnboardingCreateResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/dashboard/stores:
+    get:
+      security: []
+      operationId: sprintDashboardStores
+      tags: [Dashboard]
+      summary: Dashboard stores list
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Список магазинов владельца
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponseStores"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/dashboard/leads:
+    get:
+      security: []
+      operationId: sprintDashboardLeads
+      tags: [Dashboard]
+      summary: Dashboard leads
+      responses:
+        "200":
+          description: Лиды по магазинам владельца
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardLeadsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/dashboard/leads/{id}:
+    get:
+      security: []
+      operationId: sprintDashboardLeadGet
+      tags: [Dashboard]
+      summary: Lead details
+      parameters:
+        - $ref: "#/components/parameters/LeadId"
+      responses:
+        "200":
+          description: Лид с историей статусов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      security: []
+      operationId: sprintDashboardLeadUpdateStatus
+      tags: [Dashboard]
+      summary: Update lead status
+      parameters:
+        - $ref: "#/components/parameters/LeadId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardLeadStatusRequest"
+      responses:
+        "200":
+          description: Лид с историей статусов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/dashboard/leads/{id}/comment:
+    patch:
+      security: []
+      operationId: sprintDashboardLeadUpdateComment
+      tags: [Dashboard]
+      summary: Update lead comment
+      parameters:
+        - $ref: "#/components/parameters/LeadId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DashboardLeadCommentRequest"
+      responses:
+        "200":
+          description: Обновлённый лид
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/dashboard/analytics:
+    get:
+      security: []
+      operationId: sprintDashboardAnalytics
+      tags: [Dashboard]
+      summary: Dashboard analytics
+      parameters:
+        - $ref: "#/components/parameters/AnalyticsPeriod"
+      responses:
+        "200":
+          description: Метрики и ряды по дням
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardAnalyticsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/store/{slug}:
+    get:
+      security: []
+      operationId: sprintPublicStoreBySlug
+      tags: [Dashboard]
+      summary: Public store + products (sprint)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: Магазин и товары (sprint)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SprintPublicStore"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/store/{slug}/lead:
+    post:
+      security: []
+      operationId: sprintCreateLead
+      tags: [Dashboard]
+      summary: Create lead (sprint)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SprintLeadCreateRequest"
+      responses:
+        "201":
+          description: Созданный лид
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+  parameters:
+    StoreId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    StoreID:
+      name: storeID
+      in: path
+      required: true
+      schema:
+        type: string
+    ProductId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    OrderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    LeadId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Номер страницы (по умолчанию 1)
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Размер страницы (макс. 100)
+    AnalyticsPeriod:
+      name: period
+      in: query
+      schema:
+        type: integer
+        enum: [7, 30, 90]
+        default: 7
+      description: Окно аналитики в днях
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: bazar-ai-api
+        version:
+          type: string
+          description: Версия сборки (например dev или git tag)
+          example: dev
+    ReadyOKResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+    ReadyNotReadyResponse:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [not_ready]
+        database:
+          type: string
+          example: unavailable
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: |
+                Коды из API, например validation_error, unauthorized, forbidden, not_found,
+                conflict, quota_exceeded, rate_limited, payload_too_large, upstream_error, internal_error.
+            message:
+              type: string
+            request_id:
+              type: string
+
+    AuthRegisterRequest:
+      type: object
+      description: Нужен хотя бы один из `email` / `phone`; пароль ≥8 символов, буквы и цифры.
+      properties:
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    AuthLoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: Email или телефон
+        password:
+          type: string
+    AuthRefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+        device_id:
+          type: string
+          description: Должен совпадать с привязкой токена, если использовался при выдаче
+    AuthLogoutRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+        all:
+          type: boolean
+          description: Если true — отозвать все сессии (нужен Bearer)
+
+    OnboardingCompleteRequest:
+      type: object
+      properties:
+        niche:
+          type: string
+        name:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        style:
+          type: string
+        contacts:
+          $ref: "#/components/schemas/Contacts"
+
+    StoreCreateRequest:
+      allOf:
+        - $ref: "#/components/schemas/Store"
+      description: |
+        Декод как [platform.Store](internal/platform). `owner_id` в теле перезаписывается из JWT.
+        Сервер валидирует имя и контакты.
+
+    ProductWriteRequest:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+      description: |
+        При создании `store_id` берётся из path. Идентификаторы и slug на стороне сервера при создании могут игнорироваться/пересчитываться в зависимости от репозитория.
+
+    OrderCreateRequest:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+      description: |
+        `store_id` подставляется из витрины; клиент передаёт покупателя, позиции и суммы. `Idempotency-Key` — HTTP-заголовок.
+
+    AIGenerateRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: По умолчанию — из JWT
+        store_id:
+          type: string
+        input:
+          type: string
+          description: Промпт / контекст генерации
+
+    SprintOnboardingCreateRequest:
+      type: object
+      required: [name, niche, city, region, style, contacts]
+      properties:
+        name:
+          type: string
+        niche:
+          type: string
+        city:
+          type: string
+        region:
+          type: string
+        style:
+          type: string
+        contacts:
+          $ref: "#/components/schemas/Contacts"
+      description: Хотя бы один из phone / whatsapp / telegram в contacts
+
+    DashboardLeadStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [new, contacted, closed]
+
+    DashboardLeadCommentRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+          maxLength: 1000
+
+    SprintLeadCreateRequest:
+      type: object
+      required: [customerName, phone]
+      properties:
+        customerName:
+          type: string
+        phone:
+          type: string
+        message:
+          type: string
+
+    TelegramWebhookUpdate:
+      type: object
+      description: Упрощённая схема Telegram Update (обрабатывается ветка message.text)
+      properties:
+        message:
+          type: object
+          properties:
+            text:
+              type: string
+            chat:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  format: int64
+            from:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  format: int64
+      additionalProperties: true
+
+    AuthTokenWithUser:
+      type: object
+      required: [user, access_token, refresh_token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+    AuthTokenPair:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+    LoggedOutStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: logged_out
+    UserWrapped:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Contacts:
+      type: object
+      properties:
+        phone: { type: string }
+        whatsapp: { type: string }
+        telegram: { type: string }
+        instagram: { type: string }
+        address: { type: string }
+        schedule: { type: string }
+    Store:
+      type: object
+      properties:
+        id: { type: string }
+        owner_id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        niche: { type: string }
+        description: { type: string }
+        region: { type: string }
+        city: { type: string }
+        currency: { type: string }
+        status: { type: string }
+        tariff: { type: string }
+        theme: { type: string }
+        style: { type: string }
+        contacts:
+          $ref: "#/components/schemas/Contacts"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    OnboardingCompleteResponse:
+      type: object
+      required: [store, public_url]
+      properties:
+        store:
+          $ref: "#/components/schemas/Store"
+        public_url:
+          type: string
+          description: Абсолютный URL витрины
+    PublicStorefront:
+      type: object
+      required: [store, products, seo]
+      properties:
+        store:
+          $ref: "#/components/schemas/Store"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        seo:
+          type: object
+          properties:
+            title: { type: string }
+            description: { type: string }
+    SprintPublicStore:
+      type: object
+      required: [store, products]
+      properties:
+        store:
+          $ref: "#/components/schemas/Store"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+    SprintOnboardingCreateResponse:
+      type: object
+      required: [store, guest_mode]
+      properties:
+        store:
+          $ref: "#/components/schemas/Store"
+        guest_mode:
+          type: boolean
+
+    OrderItem:
+      type: object
+      properties:
+        product_id: { type: string }
+        title: { type: string }
+        quantity: { type: integer }
+        price: { type: integer, format: int64 }
+        total: { type: integer, format: int64 }
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        store_id: { type: string }
+        idempotency_key: { type: string }
+        status: { type: string }
+        payment_status: { type: string }
+        delivery_status: { type: string }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        customer_city: { type: string }
+        customer_address: { type: string }
+        comment: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        total_amount: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        store_id: { type: string }
+        category_id: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        short_description: { type: string }
+        price: { type: integer, format: int64 }
+        old_price: { type: integer, format: int64 }
+        currency: { type: string }
+        images:
+          type: array
+          items: { type: string }
+        image: { type: string }
+        stock_quantity: { type: integer }
+        featured: { type: boolean }
+        sku: { type: string }
+        status: { type: string }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+        seo_title: { type: string }
+        seo_description: { type: string }
+        created_at: { type: string, format: date-time }
+    ProductDeletedStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: deleted
+
+    Pagination:
+      type: object
+      required: [page, limit]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+    ListResponseStores:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
+        meta:
+          $ref: "#/components/schemas/Pagination"
+    ListResponseProducts:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        meta:
+          $ref: "#/components/schemas/Pagination"
+    ListResponseOrders:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        meta:
+          $ref: "#/components/schemas/Pagination"
+
+    ImageUploadResult:
+      type: object
+      required: [url, preview_url, mime, filename, max_size]
+      properties:
+        url: { type: string }
+        preview_url: { type: string }
+        mime: { type: string }
+        filename: { type: string }
+        max_size:
+          type: integer
+          description: Максимальный размер в байтах (5 MiB)
+
+    NotificationJob:
+      type: object
+      properties:
+        id: { type: string }
+        store_id: { type: string }
+        order_id: { type: string }
+        channel: { type: string }
+        status: { type: string }
+        payload: { type: string }
+        created_at: { type: string, format: date-time }
+
+    TelegramConnectCodeResponse:
+      type: object
+      required: [code, expires_at, instruction]
+      properties:
+        code: { type: string }
+        expires_at: { type: string, format: date-time }
+        instruction: { type: string }
+    TelegramConnection:
+      type: object
+      properties:
+        code: { type: string }
+        user_id: { type: string }
+        store_id: { type: string }
+        telegram_id: { type: string }
+        status: { type: string }
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    TelegramNotConnected:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [not_connected]
+    TelegramTestSent:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [sent]
+    TelegramWebhookAck:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [connected, ignored]
+
+    AIGeneration:
+      type: object
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        store_id: { type: string }
+        type: { type: string }
+        input: { type: string }
+        output: { type: string }
+        tokens_used: { type: integer }
+        provider: { type: string }
+        status: { type: string }
+        cost: { type: number, format: double }
+        created_at: { type: string, format: date-time }
+
+    AdminStats:
+      type: object
+      properties:
+        stores: { type: integer }
+        active_stores: { type: integer }
+        orders: { type: integer }
+        gmv: { type: integer, format: int64 }
+        mrr: { type: integer }
+        ai_usage: { type: string }
+
+    LeadStatusEvent:
+      type: object
+      properties:
+        id: { type: string }
+        lead_id: { type: string }
+        from_status: { type: string }
+        to_status: { type: string }
+        created_at: { type: string, format: date-time }
+    Lead:
+      type: object
+      properties:
+        id: { type: string }
+        store_id: { type: string }
+        customer_name: { type: string }
+        phone: { type: string }
+        message: { type: string }
+        manager_comment: { type: string }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+        status_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadStatusEvent"
+    DashboardLeadsResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        meta:
+          type: object
+          properties:
+            total: { type: integer }
+    DashboardAnalyticsData:
+      type: object
+      properties:
+        stores: { type: integer }
+        leads: { type: integer }
+        orders: { type: integer }
+        gmv: { type: integer, format: int64 }
+        period: { type: integer, description: "Дней: 7, 30 или 90" }
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, example: "2026-05-01" }
+              leads: { type: integer }
+              orders: { type: integer }
+              gmv: { type: integer, format: int64 }
+    DashboardAnalyticsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/DashboardAnalyticsData"
+
+  responses:
+    ValidationError:
+      description: Невалидное тело или бизнес-валидация
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: validation_error
+              message: invalid payload
+    Unauthorized:
+      description: Нет или неверный Bearer / сессия
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: unauthorized
+              message: missing token
+    Forbidden:
+      description: Недостаточно прав или CORS origin
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: forbidden
+              message: insufficient role
+    NotFound:
+      description: Сущность не найдена
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: not_found
+              message: resource not found
+    Conflict:
+      description: Конфликт (например пользователь уже есть)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: conflict
+              message: user already exists or payload is invalid
+    QuotaExceeded:
+      description: Лимит тарифа (HTTP 402 Payment Required в коде API)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: quota_exceeded
+              message: product limit exceeded for tariff free
+    TooManyRequests:
+      description: Rate limit 120/мин на IP
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: rate_limited
+              message: rate limit exceeded
+    BadGateway:
+      description: Ошибка внешнего провайдера (AI, Telegram send)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: upstream_error
+              message: ai provider failed
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: internal_error
+              message: unexpected server error
+    PayloadTooLarge:
+      description: Тело запроса превышает лимит (см. API_MAX_BODY_BYTES); для multipart действуют лимиты обработчика.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: payload_too_large
+              message: request body too large

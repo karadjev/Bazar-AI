@@ -1,11 +1,14 @@
 export type Store = {
   id: string;
+  owner_id?: string;
   name: string;
   slug: string;
+  niche?: string;
   description: string;
   region: string;
   city: string;
   theme: string;
+  style?: string;
   contacts?: { phone?: string; whatsapp?: string; telegram?: string; instagram?: string };
 };
 
@@ -20,6 +23,20 @@ export type Product = {
   currency?: string;
   stock_quantity?: number;
   images?: string[];
+  image?: string;
+  featured?: boolean;
+};
+
+export type Lead = {
+  id: string;
+  store_id: string;
+  customer_name: string;
+  phone: string;
+  message: string;
+  manager_comment?: string;
+  status: string;
+  created_at?: string;
+  status_history?: Array<{ id: string; lead_id: string; from_status: string; to_status: string; created_at: string }>;
 };
 
 export type Order = {
@@ -30,6 +47,15 @@ export type Order = {
   total_amount: number;
   created_at?: string;
   items?: Array<{ product_id?: string; title: string; quantity: number; price: number; total?: number }>;
+};
+
+export type AuthUser = {
+  id: string;
+  email?: string;
+  phone?: string;
+  name?: string;
+  role: string;
+  status: string;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -96,8 +122,16 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ error: "request failed" }));
-    throw new Error(body.error || "request failed");
+    const body = await response.json().catch(() => null) as
+      | { error?: string | { message?: string; code?: string } }
+      | null;
+    if (typeof body?.error === "string") {
+      throw new Error(body.error);
+    }
+    if (body?.error && typeof body.error === "object" && body.error.message) {
+      throw new Error(body.error.message);
+    }
+    throw new Error("request failed");
   }
   return response.json();
 }
@@ -109,4 +143,108 @@ export async function registerDemo(email: string, password: string) {
   });
   setSession(result.access_token, result.refresh_token);
   return result;
+}
+
+export async function loginDemo(email: string, password: string) {
+  const result = await api<{ access_token: string; refresh_token: string }>("/api/v1/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  setSession(result.access_token, result.refresh_token);
+  return result;
+}
+
+export async function authMe() {
+  return api<{ user: AuthUser }>("/api/v1/auth/me");
+}
+
+export async function createStoreOnboarding(input: {
+  name: string;
+  niche: string;
+  city: string;
+  region: string;
+  style: string;
+  contacts: { phone?: string; whatsapp?: string; telegram?: string };
+}) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ store: Store; guest_mode?: boolean }>(`/api/onboarding/create-store${guest}`, {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function dashboardStores() {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ data: Store[] }>(`/api/dashboard/stores${guest}`);
+}
+
+export async function dashboardLeads() {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<{ data: Lead[] }>(`/api/dashboard/leads${guest}`);
+}
+
+export async function updateDashboardLeadStatus(leadId: string, status: "new" | "contacted" | "closed") {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}${guest}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status })
+  });
+}
+
+export async function dashboardAnalytics(period: 7 | 30 | 90 = 7) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  const sep = guest ? "&" : "?";
+  return api<{ data: { stores: number; leads: number; orders: number; gmv: number; period: number; series?: Array<{ date: string; leads: number; orders: number; gmv: number }> } }>(`/api/dashboard/analytics${guest}${sep}period=${period}`);
+}
+
+export async function dashboardLeadDetails(leadId: string) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}${guest}`);
+}
+
+export async function updateDashboardLeadComment(leadId: string, comment: string) {
+  const token = getToken();
+  const guest = !token ? "?guest=1" : "";
+  return api<Lead>(`/api/dashboard/leads/${leadId}/comment${guest}`, {
+    method: "PATCH",
+    body: JSON.stringify({ comment })
+  });
+}
+
+export async function publicStore(slug: string) {
+  return api<{ store: Store; products: Product[] }>(`/api/store/${slug}`);
+}
+
+export async function createLead(slug: string, payload: { customerName: string; phone: string; message: string }) {
+  return api<Lead>(`/api/store/${slug}/lead`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateProduct(productId: string, payload: {
+  title: string;
+  description: string;
+  short_description?: string;
+  price: number;
+  currency?: string;
+  stock_quantity?: number;
+  status?: string;
+  image?: string;
+  featured?: boolean;
+}) {
+  return api<Product>(`/api/v1/products/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteProduct(productId: string) {
+  return api<{ status: string }>(`/api/v1/products/${productId}`, { method: "DELETE" });
 }

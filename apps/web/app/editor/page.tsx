@@ -1,20 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { GripVertical, History, Laptop, MessageCircle, MonitorSmartphone, PanelRight, Redo2, Smartphone, Sparkles, Undo2 } from "lucide-react";
 import { Badge, Button, Card, Field, Tabs, Toast } from "@/components/ui-kit";
-import { storefrontThemes } from "@/lib/themes";
+import { storefrontThemesLite } from "@/lib/themes-lite";
 import { AIActions } from "@/components/ai-actions";
 
-const blocks = ["hero", "товары", "категории", "отзывы", "акции", "доставка", "FAQ", "контакты", "Instagram/Telegram CTA"];
-const quickStyles = ["Premium", "Editorial", "Minimal", "Local", "Contrast"];
+const blocks = ["первый экран", "товары", "категории", "отзывы", "акции", "доставка", "вопросы", "контакты", "CTA для Instagram/Telegram"];
+const quickStyles: Array<{ label: string; themeCode: string; title: string; button: string }> = [
+  { label: "Премиум", themeCode: "premium-fashion", title: "Премиальная витрина", button: "Заказать сегодня" },
+  { label: "Редакционный", themeCode: "beauty", title: "Редакционный lookbook", button: "Подобрать образ" },
+  { label: "Минимализм", themeCode: "premium-boutique", title: "Чистый минимализм", button: "В корзину" },
+  { label: "Локальный", themeCode: "halal-market", title: "Локальный маркет", button: "Заказать доставку" },
+  { label: "Контраст", themeCode: "perfume-luxury", title: "Контрастный hero", button: "Оставить заявку" }
+];
 
 export default function StoreEditorPage() {
-  const [activeBlock, setActiveBlock] = useState("hero");
-  const [preview, setPreview] = useState("Desktop");
-  const [theme, setTheme] = useState(storefrontThemes[0]);
+  const [activeBlock, setActiveBlock] = useState("первый экран");
+  const [preview, setPreview] = useState("Компьютер");
+  const [theme, setTheme] = useState(storefrontThemesLite[0]);
   const [toast, setToast] = useState("");
-  const [settings, setSettings] = useState({ title: "Kavkaz Style", button: "Заказать сегодня", color: theme.accent });
+  const [settings, setSettings] = useState({ title: "Кавказ Стиль", button: "Заказать сегодня", color: theme.accent });
   const [history, setHistory] = useState(["Первичная версия"]);
   const [future, setFuture] = useState<string[]>([]);
   const [autosaved, setAutosaved] = useState("только что");
@@ -49,25 +56,25 @@ export default function StoreEditorPage() {
   }
 
   function aiRedesign() {
-    const next = storefrontThemes[(storefrontThemes.findIndex((item) => item.code === theme.code) + 1) % storefrontThemes.length];
+    const next = storefrontThemesLite[(storefrontThemesLite.findIndex((item) => item.code === theme.code) + 1) % storefrontThemesLite.length];
     setTheme(next);
     setSettings({ ...settings, color: next.accent, button: "Запустить заказ" });
     setToast("AI сделал магазин красивее");
   }
 
   return (
-    <main className="min-h-screen bg-paper text-ink premium-grid">
+    <main className="min-h-screen bg-paper text-ink premium-grid" data-testid="page-editor">
       {toast && <Toast>{toast}</Toast>}
-      <header className="glass-panel sticky top-3 z-20 mx-auto mt-3 flex max-w-7xl items-center justify-between rounded-lg px-4 py-3 shadow-soft">
+      <header className="glass-panel sticky top-3 z-20 mx-auto mt-3 flex max-w-7xl items-center justify-between rounded-2xl border border-line/50 px-4 py-3 shadow-[0_20px_50px_rgba(10,13,18,0.08)] ring-1 ring-white/50">
         <div>
-          <p className="text-xs font-semibold uppercase text-sea">Store editor</p>
-          <h1 className="text-lg font-semibold">Редактор магазина</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-sea">Редактор витрины</p>
+          <h1 className="text-lg font-extrabold tracking-tight">Редактор магазина</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs font-semibold text-mint md:inline">{autosaved}</span>
-          <button onClick={undo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Undo"><Undo2 size={17} /></button>
-          <button onClick={redo} className="grid h-10 w-10 place-items-center rounded-md border border-line bg-white" title="Redo"><Redo2 size={17} /></button>
-          <Tabs items={["Desktop", "Mobile"]} active={preview} onChange={setPreview} />
+          <button type="button" onClick={undo} className="focus-ring grid h-10 w-10 place-items-center rounded-xl border border-line/90 bg-white transition duration-200 ease-premium hover:border-neutral-300 hover:bg-neutral-50" title="Отменить"><Undo2 size={17} /></button>
+          <button type="button" onClick={redo} className="focus-ring grid h-10 w-10 place-items-center rounded-xl border border-line/90 bg-white transition duration-200 ease-premium hover:border-neutral-300 hover:bg-neutral-50" title="Вернуть"><Redo2 size={17} /></button>
+          <Tabs items={["Компьютер", "Телефон"]} active={preview} onChange={setPreview} />
           <Button onClick={save}>Сохранить</Button>
         </div>
       </header>
@@ -75,21 +82,21 @@ export default function StoreEditorPage() {
       <section className="mx-auto grid max-w-7xl gap-4 px-4 py-5 xl:grid-cols-[260px_1fr_320px]">
         <Card className="h-fit p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Блоки</h2>
-            <Badge tone="blue">drag</Badge>
+            <h2 className="text-sm font-bold">Блоки</h2>
+            <Badge tone="blue">порядок</Badge>
           </div>
           <div className="mt-4 space-y-2">
             {blocks.map((block) => (
-              <button key={block} onClick={() => setActiveBlock(block)} className={`flex w-full items-center gap-3 rounded-md border p-3 text-left text-sm font-semibold transition hover:-translate-y-0.5 ${activeBlock === block ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>
+              <button key={block} type="button" onClick={() => setActiveBlock(block)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm font-bold transition duration-200 ease-premium hover:-translate-y-0.5 ${activeBlock === block ? "border-sea/40 bg-gradient-to-r from-ink to-sea text-white shadow-md" : "border-line/90 bg-white/95 hover:border-sea/20 hover:shadow-sm"}`}>
                 <GripVertical size={16} className={activeBlock === block ? "text-white/[0.6]" : "text-neutral-400"} />
                 {block}
               </button>
             ))}
           </div>
-          <div className="mt-5 rounded-lg border border-line bg-paper p-3">
+          <div className="mt-5 rounded-xl border border-line/90 bg-paper p-3 ring-1 ring-black/[0.02]">
             <div className="flex items-center gap-2 text-sm font-semibold"><History size={16} />История</div>
             <div className="mt-3 space-y-2">
-              {history.map((item) => <p key={item} className="rounded-md bg-white p-2 text-xs text-neutral-600">{item}</p>)}
+              {history.map((item) => <p key={item} className="rounded-xl bg-white p-2 text-xs text-neutral-600 ring-1 ring-black/[0.03]">{item}</p>)}
             </div>
           </div>
         </Card>
@@ -99,25 +106,27 @@ export default function StoreEditorPage() {
             <div className="mb-3 flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <MonitorSmartphone size={18} className="text-sea" />
-                <p className="text-sm font-semibold">Preview</p>
+                <p className="text-sm font-semibold">Предпросмотр</p>
               </div>
               <div className="flex gap-2 text-xs text-neutral-500">
-                <span className="flex items-center gap-1"><Laptop size={14} />Desktop</span>
-                <span className="flex items-center gap-1"><Smartphone size={14} />Mobile</span>
+                <span className="flex items-center gap-1"><Laptop size={14} />Компьютер</span>
+                <span className="flex items-center gap-1"><Smartphone size={14} />Телефон</span>
               </div>
             </div>
-            <div className={`mx-auto overflow-hidden rounded-lg border border-line transition-all duration-300 ${preview === "Mobile" ? "max-w-[390px]" : "max-w-full"}`} style={{ background: theme.bg, color: theme.text }}>
+            <div className={`mx-auto overflow-hidden rounded-2xl border border-line/90 shadow-[0_24px_70px_rgba(10,13,18,0.08)] ring-1 ring-black/[0.03] transition-all duration-200 ease-premium ${preview === "Телефон" ? "max-w-[390px]" : "max-w-full"}`} style={{ background: theme.bg, color: theme.text }}>
               <div className="relative min-h-[520px]">
-                <img src={theme.image} alt="" className="h-64 w-full object-cover" />
+                <div className="relative h-64 w-full">
+                  <Image src={theme.image} alt="" fill className="object-cover" sizes="(max-width: 1280px) 100vw, 900px" />
+                </div>
                 <div className="p-5">
                   <Badge tone="gold">{theme.title}</Badge>
                   <h2 className="mt-4 text-4xl font-semibold leading-tight">{settings.title}</h2>
                   <p className="mt-3 max-w-xl text-sm leading-6 opacity-70">{theme.hero}</p>
-                  <button className="mt-5 h-11 rounded-md px-4 text-sm font-semibold text-white" style={{ background: settings.color }}>{settings.button}</button>
+                  <button className="mt-5 h-11 rounded-2xl px-5 text-sm font-bold text-white shadow-lg transition hover:brightness-110" style={{ background: settings.color }}>{settings.button}</button>
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     {["Платок", "Парфюм", "Подарок"].map((item) => (
-                      <div key={item} className="rounded-lg p-3" style={{ background: theme.surface }}>
-                        <div className="aspect-square rounded-md" style={{ background: settings.color }} />
+                      <div key={item} className="rounded-xl p-3" style={{ background: theme.surface }}>
+                        <div className="aspect-square rounded-lg" style={{ background: settings.color }} />
                         <p className="mt-2 text-sm font-semibold">{item}</p>
                       </div>
                     ))}
@@ -138,19 +147,34 @@ export default function StoreEditorPage() {
             <Field label="Текст кнопки" value={settings.button} onChange={(button) => updateSettings({ ...settings, button })} />
             <label className="block">
               <span className="text-xs font-semibold text-neutral-500">Акцент</span>
-              <input type="color" value={settings.color} onChange={(event) => updateSettings({ ...settings, color: event.target.value })} className="mt-1 h-12 w-full rounded-md border border-line bg-white p-1" />
+              <input type="color" value={settings.color} onChange={(event) => updateSettings({ ...settings, color: event.target.value })} className="mt-1 h-12 w-full cursor-pointer rounded-xl border border-line/90 bg-white p-1 transition hover:border-neutral-300" />
             </label>
             <div>
               <p className="text-xs font-semibold text-neutral-500">Быстрые стили</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {quickStyles.map((style) => <Badge key={style} tone="neutral">{style}</Badge>)}
+                {quickStyles.map((style) => (
+                  <button
+                    key={style.label}
+                    type="button"
+                    onClick={() => {
+                      const picked = storefrontThemesLite.find((t) => t.code === style.themeCode) || storefrontThemesLite[0];
+                      setTheme(picked);
+                      updateSettings({ title: style.title, button: style.button, color: picked.accent });
+                      setToast(`Применен стиль «${style.label}»`);
+                      setTimeout(() => setToast(""), 2000);
+                    }}
+                    className="rounded-full border border-line/90 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 transition duration-200 ease-premium hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-soft"
+                  >
+                    {style.label}
+                  </button>
+                ))}
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold text-neutral-500">Темы</p>
               <div className="mt-2 grid gap-2">
-                {storefrontThemes.map((item) => (
-                  <button key={item.code} onClick={() => { setTheme(item); updateSettings({ ...settings, color: item.accent }); }} className={`rounded-md border p-3 text-left text-sm font-semibold ${theme.code === item.code ? "border-ink bg-ink text-white" : "border-line bg-white"}`}>{item.title}</button>
+                {storefrontThemesLite.map((item) => (
+                  <button key={item.code} type="button" onClick={() => { setTheme(item); updateSettings({ ...settings, color: item.accent }); }} className={`focus-ring rounded-xl border p-3 text-left text-sm font-semibold transition duration-200 ease-premium ${theme.code === item.code ? "border-ink bg-ink text-white" : "border-line/90 bg-white hover:border-neutral-300"}`}>{item.title}</button>
                 ))}
               </div>
             </div>
@@ -158,8 +182,19 @@ export default function StoreEditorPage() {
               <p className="mb-2 text-xs font-semibold text-neutral-500">AI действия</p>
               <AIActions compact />
             </div>
-            <Button onClick={aiRedesign} variant="secondary" className="w-full"><Sparkles size={17} />Сделать магазин красивее с AI</Button>
-            <Button variant="dark" className="w-full"><MessageCircle size={17} />CTA Telegram</Button>
+            <Button onClick={aiRedesign} variant="secondary" className="w-full"><Sparkles size={17} />Улучшить магазин с AI</Button>
+            <Button
+              variant="dark"
+              className="w-full"
+              onClick={() => {
+                updateSettings({ ...settings, button: "Заказать в Telegram" });
+                setActiveBlock("CTA для Instagram/Telegram");
+                setToast("CTA для Telegram применен");
+                setTimeout(() => setToast(""), 2200);
+              }}
+            >
+              <MessageCircle size={17} />CTA для Telegram
+            </Button>
           </div>
         </Card>
       </section>

@@ -4,9 +4,22 @@
 
 :root {
   color-scheme: light;
-  background: #fafaf7;
-  color: #141414;
-  --radius: 8px;
+  --color-ink: #0a0d12;
+  --color-muted: #5c6578;
+  --color-paper: #eef2f9;
+  --color-surface: #ffffff;
+  --color-line: #dfe5ef;
+  --color-sea: #1d6f82;
+  --color-mint: #3d8f62;
+  --color-berry: #8b3258;
+  --color-saffron: #c9891f;
+  --color-glow-sea: rgba(29, 111, 130, 0.45);
+  --color-glow-berry: rgba(139, 50, 88, 0.35);
+  --radius: 10px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 * {
@@ -19,12 +32,33 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,247,1) 28rem),
-    #fafaf7;
-  color: #141414;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0;
+  font-feature-settings: "kern" 1, "liga" 1;
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(ellipse 100% 80% at 50% -30%, rgba(255, 255, 255, 0.85), transparent 45%),
+    radial-gradient(980px 480px at 8% 0%, rgba(29, 111, 130, 0.2), transparent 52%),
+    radial-gradient(820px 440px at 96% 8%, rgba(201, 137, 31, 0.14), transparent 48%),
+    radial-gradient(720px 400px at 72% 96%, rgba(139, 50, 88, 0.1), transparent 50%),
+    radial-gradient(600px 320px at 18% 88%, rgba(29, 111, 130, 0.06), transparent 55%),
+    linear-gradient(180deg, #fbfdff 0%, var(--color-paper) 32rem, var(--color-paper) 100%);
+  color: var(--color-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+  line-height: 1.55;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Киношное зерно + глубина страницы (pointer-events: none — не мешает UI) */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
 button,
@@ -38,38 +72,115 @@ button {
   cursor: pointer;
 }
 
+img {
+  max-width: 100%;
+}
+
+::selection {
+  background: rgba(29, 111, 130, 0.18);
+  color: var(--color-ink);
+}
+
 .focus-ring {
   outline: 2px solid transparent;
   outline-offset: 2px;
 }
 
 .focus-ring:focus-visible {
-  outline-color: #277c8e;
+  outline-color: var(--color-sea);
 }
 
-::selection {
-  background: rgba(231, 168, 62, 0.3);
+/* Ссылки вне кнопок: видимый фокус для клавиатуры */
+a:focus-visible {
+  outline: 2px solid var(--color-sea);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+details summary:focus-visible {
+  outline: 2px solid var(--color-sea);
+  outline-offset: 2px;
+  border-radius: var(--radius-xl);
+}
+
+.shell {
+  width: min(1200px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+.text-balance {
+  text-wrap: balance;
 }
 
 .premium-grid {
   background-image:
-    linear-gradient(rgba(20, 20, 20, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 20, 20, 0.045) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(rgba(13, 17, 23, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 17, 23, 0.028) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .glass-panel {
-  border: 1px solid rgba(231, 225, 215, 0.8);
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(18px);
+  border: 1px solid color-mix(in srgb, var(--color-line) 90%, transparent);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.8));
+  backdrop-filter: blur(22px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 1px 2px rgba(10, 13, 18, 0.04);
+}
+
+.surface-elevated {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 2px 6px rgba(10, 13, 18, 0.03),
+    0 32px 88px rgba(10, 13, 18, 0.075),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* Медленное свечение за hero-колонкой (landing) */
+.hero-ambient {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: heroAmbient 18s ease-in-out infinite;
+}
+
+@keyframes heroAmbient {
+  0%, 100% { opacity: 0.55; transform: translate(0, 0) scale(1); }
+  40% { opacity: 0.85; transform: translate(4%, -3%) scale(1.08); }
+  70% { opacity: 0.65; transform: translate(-3%, 4%) scale(0.96); }
+}
+
+.hero-vignette {
+  background:
+    linear-gradient(90deg, rgba(5, 8, 13, 0.88), rgba(5, 8, 13, 0.58) 50%, rgba(5, 8, 13, 0.08)),
+    linear-gradient(180deg, rgba(5, 8, 13, 0.18), rgba(5, 8, 13, 0.72));
+}
+
+.shadow-premium {
+  box-shadow: 0 24px 80px rgba(13, 17, 23, 0.13);
+}
+
+.shadow-float {
+  box-shadow: 0 18px 46px rgba(13, 17, 23, 0.10);
 }
 
 .animate-rise {
-  animation: rise 0.32s ease-out both;
+  animation: rise 0.34s ease-out both;
+}
+
+.animate-reveal {
+  animation: reveal 0.52s ease-out both;
 }
 
 .animate-soft-pulse {
   animation: softPulse 1.6s ease-in-out infinite;
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
 }
 
 .confetti-piece {
@@ -81,6 +192,11 @@ button {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes softPulse {
   0%, 100% { opacity: 0.58; transform: scale(0.98); }
   50% { opacity: 1; transform: scale(1); }
@@ -90,4 +206,60 @@ button {
   0% { opacity: 0; transform: translateY(0) rotate(0deg); }
   20% { opacity: 1; }
   100% { opacity: 0; transform: translateY(130px) rotate(240deg); }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-ink);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 18px 46px rgba(13, 17, 23, 0.18);
+  transform: translateY(-160%);
+  transition: transform 0.2s ease, outline 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--color-sea);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-rise,
+  .animate-reveal,
+  .animate-soft-pulse,
+  .animate-ping,
+  .loading-shimmer,
+  .confetti-piece,
+  .hero-ambient {
+    animation: none !important;
+  }
+
+  body::after {
+    opacity: 0.02;
+  }
+
+  .skip-link {
+    transition: none;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

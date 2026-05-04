@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16.6-alpine
+        env:
+          POSTGRES_DB: bazar_ai_test
+          POSTGRES_USER: bazar
+          POSTGRES_PASSWORD: bazar_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bazar -d bazar_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: OpenAPI lint
+        working-directory: apps/api
+        run: npx --yes @redocly/cli@1 lint openapi.yaml
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - name: Test
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgres://bazar:bazar_test@127.0.0.1:5432/bazar_ai_test?sslmode=disable
+        run: go test -p 1 ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/web/.nvmrc
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        working-directory: apps/web
+        run: npm ci
+      - name: Build
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_API_URL: "/api"
+          NEXT_PUBLIC_APP_URL: "https://ci.local"
+          NEXT_PUBLIC_SITE_URL: "https://ci.local"
+        run: npm run build

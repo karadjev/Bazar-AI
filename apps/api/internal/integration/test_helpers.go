@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +47,7 @@ func newIntegrationEnv(t *testing.T) *integrationEnv {
 	if err != nil {
 		t.Fatalf("connect test database: %v", err)
 	}
-	if err := applyMigrations(ctx, db, "../../migrations/001_init.sql", "../../migrations/002_backend_hardening.sql"); err != nil {
+	if err := applyMigrationsFromDir(ctx, db, "../../migrations"); err != nil {
 		db.Close()
 		t.Fatalf("apply migrations: %v", err)
 	}
@@ -96,6 +98,24 @@ func applyMigrations(ctx context.Context, db interface {
 		}
 	}
 	return nil
+}
+
+func applyMigrationsFromDir(ctx context.Context, db interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}, dir string) error {
+	entries, err := os.ReadDir(filepath.Clean(dir))
+	if err != nil {
+		return err
+	}
+	migrationPaths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		migrationPaths = append(migrationPaths, filepath.Join(dir, entry.Name()))
+	}
+	sort.Strings(migrationPaths)
+	return applyMigrations(ctx, db, migrationPaths...)
 }
 
 func postJSON[T any](t *testing.T, url string, payload any, headers map[string]string, wantStatus int) T {

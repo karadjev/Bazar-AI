@@ -242,15 +242,36 @@ export const storefrontThemes: StoreTheme[] = [
   }
 ];
 
+/** Демо-URL `/store/:slug` для превью по коду темы (согласовано с themeBySlug). */
+export function demoSlugForThemeCode(code: string): string {
+  const slugs: Record<string, string> = {
+    "premium-fashion": "amina-wear",
+    beauty: "beauty-cosmetics",
+    "halal-market": "halal-basket",
+    "perfume-luxury": "oud-house",
+    "cakes-food": "cake-atelier",
+    "islamic-store": "iman-store",
+    electronics: "electronics-demo",
+    "local-brand": "local-brand-demo",
+    "auto-parts": "auto-parts-demo",
+    "beauty-salon": "beauty-salon-demo",
+    "premium-boutique": "premium-boutique-demo"
+  };
+  return slugs[code] || "oud-house";
+}
+
 export function themeBySlug(slug: string) {
-  if (slug.includes("oud") || slug.includes("parfum")) return storefrontThemes[3];
-  if (slug.includes("halal")) return storefrontThemes[2];
-  if (slug.includes("beauty")) return storefrontThemes[1];
-  if (slug.includes("cake") || slug.includes("tort")) return storefrontThemes[4];
-  if (slug.includes("iman") || slug.includes("islam")) return storefrontThemes[5];
-  if (slug.includes("auto")) return storefrontThemes[8];
-  if (slug.includes("salon")) return storefrontThemes[9];
-  if (slug.includes("boutique")) return storefrontThemes[10];
+  const s = slug.toLowerCase();
+  if (s.includes("oud") || s.includes("parfum")) return storefrontThemes[3];
+  if (s.includes("halal")) return storefrontThemes[2];
+  if (s.includes("salon")) return storefrontThemes[9];
+  if (s.includes("beauty")) return storefrontThemes[1];
+  if (s.includes("cake") || s.includes("tort")) return storefrontThemes[4];
+  if (s.includes("iman") || s.includes("islam")) return storefrontThemes[5];
+  if (s.includes("elect")) return storefrontThemes[6];
+  if (s.includes("local-brand")) return storefrontThemes[7];
+  if (s.includes("auto")) return storefrontThemes[8];
+  if (s.includes("boutique")) return storefrontThemes[10];
   return storefrontThemes[0];
 }
 
@@ -258,12 +279,12 @@ export function themeByNiche(niche: string) {
   const value = niche.toLowerCase();
   if (value.includes("парф")) return storefrontThemes[3];
   if (value.includes("халяль")) return storefrontThemes[2];
+  if (value.includes("салон")) return storefrontThemes[9];
   if (value.includes("космет") || value.includes("beauty")) return storefrontThemes[1];
   if (value.includes("торт") || value.includes("food")) return storefrontThemes[4];
   if (value.includes("ислам")) return storefrontThemes[5];
   if (value.includes("тех")) return storefrontThemes[6];
   if (value.includes("авто")) return storefrontThemes[8];
-  if (value.includes("салон")) return storefrontThemes[9];
   if (value.includes("бутик")) return storefrontThemes[10];
   return storefrontThemes[0];
 }

@@ -81,6 +81,10 @@ STORAGE_ACCESS_KEY=bazar
 STORAGE_SECRET_KEY=bazar_dev_password
 ```
 
+Для `APP_ENV=staging` и `APP_ENV=production` API завершится с ошибкой на старте, если не заданы критичные переменные: `DATABASE_URL`, `JWT_SECRET`, `PUBLIC_APP_URL`, `UPLOAD_BASE_URL`. `JWT_SECRET` должен быть реальным секретом длиной минимум 32 символа, а `ALLOWED_ORIGINS=*` в этих окружениях запрещен.
+
+API отдает Prometheus-compatible счетчики ответов на `/metrics`: `bazar_api_http_responses_total` с лейблами `method`, `endpoint`, `status`, `status_class`.
+
 ## Demo Flow
 
 1. `make up`
@@ -97,6 +101,10 @@ Alpha e2e после установки frontend-зависимостей:
 cd apps/web
 E2E_API_URL=http://127.0.0.1:8080 npm run e2e
 ```
+
+Смоук фронта (нужен `npm run dev` на порту 3000): `npm run e2e:web`. Оба набора: `npm run e2e:all`.
+
+Для production-сборки фронта задайте публичный URL: скопируйте `apps/web/.env.example` в `.env.local` и укажите `NEXT_PUBLIC_SITE_URL` (иначе canonical/OG/JSON-LD останутся на localhost или временном Vercel-URL).
 
 ## MVP-цель
 
